@@ -13,7 +13,7 @@ struct Gadget{
     unsigned int address;
 };
 
-int rop_findgadgets(char *binary, unsigned long binary_len);
+int rop_findgadgets(unsigned char *binary, unsigned long binary_len);
 int rop_find(char* operate, char* operand, size_t count, cs_insn *insn, struct Gadget GADGET);
 
 #endif

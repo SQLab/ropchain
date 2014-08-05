@@ -1,10 +1,12 @@
-LIBNAME = capstone
+CC = gcc
 
-ropchain: rop.o
-	${CC} $< main.c -O3 -Wall -l$(LIBNAME) -o $@
+all: ropchain libropchain.so
 
-rop.o: rop.c
-	${CC} -c $< -o $@
+ropchain: main.c libropchain.so
+	${CC} $< -L. -Wl,-rpath . -lropchain -o $@
+
+libropchain.so: rop.c
+	${CC} $< -fPIC -shared -Wall -lcapstone -o $@
 
 clean:
-	rm ropchain rop.o
+	@rm ropchain libropchain.so
