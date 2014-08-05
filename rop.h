@@ -9,8 +9,8 @@
 #include <capstone/capstone.h>
 
 struct Gadget{
-        char string[500];
-        unsigned int address;
+    char string[500];
+    unsigned int address;
 };
 
 int rop_findgadgets(char *binary, unsigned long binary_len);
