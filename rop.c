@@ -29,8 +29,10 @@ int rop_find(char* operate, char* operand, size_t count, cs_insn *insn, struct G
 {
     size_t j;
     for (j = 0; j < count; j++) {
-        //printf("0x0%"PRIx64":\t%s\t\t%s\n", insn[j].address, \
+        /*
+        printf("0x0%"PRIx64":\t%s\t\t%s\n", insn[j].address, \
         insn[j].mnemonic,insn[j].op_str);
+        */
         if(!strcmp(insn[j].mnemonic,"ret") && !strcmp(insn[j-1].mnemonic,operate) && \
                 (!strcmp(insn[j-1].op_str,operand) || !strcmp(operand,"xxx")))
         {
