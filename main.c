@@ -4,7 +4,7 @@ int main(void)
 {
     FILE *fp;
     char file_name[20];
-    char *binary;
+    unsigned char *binary;
     unsigned long binary_len;
 
     printf("Enter binary file name: ");
@@ -17,7 +17,7 @@ int main(void)
     fseek(fp, 0, SEEK_SET);
 
     //Allocate memory
-    binary = (char *)malloc(binary_len+1);
+    binary = (unsigned char *)malloc(binary_len+1);
     if(fp){
         fread(binary,binary_len,1,fp);
     }   

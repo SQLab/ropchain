@@ -1,6 +1,6 @@
 #include "rop.h"
 
-int rop_findgadgets(char *binary, unsigned long binary_len)
+int rop_findgadgets(unsigned char *binary, unsigned long binary_len)
 {
 
     size_t count;
