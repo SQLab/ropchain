@@ -80,9 +80,15 @@ void rop_chain_list_init(struct Gadget *head)
     head->prev = 0;
 }
 
-void rop_chain_list_add(struct Gadget *head, unsigned int address, char *string)
+int rop_chain_list_add(struct Gadget *head, unsigned int address, char *string)
 {
     struct Gadget *gadget;
+    if(strlen(string) > MaxGadgetLen)
+    {
+        fprintf(stderr ,"Gadget buffer overflow.\n");
+        return -1;
+    }
+
     gadget = (struct Gadget *)malloc(sizeof(struct Gadget));
     if(!gadget)
     {
@@ -103,6 +109,7 @@ void rop_chain_list_add(struct Gadget *head, unsigned int address, char *string)
         head->next = gadget;
         head->prev = gadget;
     }
+    return 0;
 }
 
 void rop_chain_list_traverse(struct Gadget *head)
