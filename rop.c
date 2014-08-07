@@ -9,9 +9,52 @@ int rop_chain(unsigned char *binary, unsigned long binary_len)
         fprintf(stderr ,"malloc failed.\n");
         return -1;
     }
-    rop_chain_list_init(head);
-    rop_chain_payload(head, binary, binary_len);
-    rop_chain_list_traverse(head);
+    rop_print_gadgets(binary, binary_len);
+    return 0;
+}
+
+int rop_print_gadgets(unsigned char *binary, unsigned long binary_len)
+{
+    size_t count;
+    csh handle;
+    cs_insn *insn;
+    struct Gadget temp;
+    size_t i,j,k;
+    unsigned int text_address = 0x08048000;
+    int gadget_num = 0;
+
+    if(cs_open(CS_ARCH_X86, CS_MODE_32, &handle) != CS_ERR_OK)
+    {
+        return -1;
+    }
+    for(i = 0; i < binary_len - MaxGadgetByte; i++)
+    {
+        count = cs_disasm_ex(handle, binary + i, MaxGadgetByte, text_address + i, 0, &insn);
+        if(count > 0)
+        {
+            strcpy(temp.string, "");
+            for(j = 0; j < count; j++)
+            {
+                if(!strcmp(insn[j].mnemonic, "ret") && j)
+                {
+                    gadget_num++;
+                    for (k = 0; k < j; k++)
+                    {
+                        strcat(temp.string, insn[k].mnemonic);
+                        strcat(temp.string, " ");
+                        strcat(temp.string, insn[k].op_str);
+                        strcat(temp.string, " ; ");
+                    }
+                    strcat(temp.string, "ret");
+                    printf("0x0%x:\t%s\n", text_address + i, temp.string);
+                    strcpy(temp.string, "");
+                }
+            }
+        }
+    }
+    printf("Gadget find = %d\n",gadget_num);
+    cs_close(&handle);
+    cs_free(insn, count);
     return 0;
 }
 

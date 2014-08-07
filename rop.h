@@ -7,10 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <capstone/capstone.h>
-#define MaxGadgetLen 100
 
-#define MaxGadgetLen 100
-#define MaxGadgetByte 4
+#define MaxGadgetLen 200
+#define MaxGadgetByte 9
 
 struct Gadget{
     char string[MaxGadgetLen];
@@ -20,6 +19,7 @@ struct Gadget{
 };
 
 int rop_chains(unsigned char *binary, unsigned long binary_len);
+int rop_print_gadgets(unsigned char *binary, unsigned long binary_len);
 int rop_find_gadgets(char* operate, char* operand, struct Gadget *head, unsigned char *binary, unsigned long binary_len);
 
 int rop_chain_payload(struct Gadget *head, unsigned char *binary, unsigned long binary_len);
