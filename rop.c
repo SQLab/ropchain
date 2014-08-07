@@ -10,6 +10,7 @@ int rop_chain(unsigned char *binary, unsigned long binary_len)
         return -1;
     }
     rop_print_gadgets(binary, binary_len);
+    free(head);
     return 0;
 }
 
@@ -18,10 +19,10 @@ int rop_print_gadgets(unsigned char *binary, unsigned long binary_len)
     size_t count;
     csh handle;
     cs_insn *insn;
-    struct Gadget temp;
-    size_t i,j,k;
+    char gadget_string[MaxGadgetLen];
     unsigned int text_address = 0x08048000;
-    int gadget_num = 0;
+    int total_gadget = 0;
+    size_t i,j,k;
 
     if(cs_open(CS_ARCH_X86, CS_MODE_32, &handle) != CS_ERR_OK)
     {
@@ -32,29 +33,30 @@ int rop_print_gadgets(unsigned char *binary, unsigned long binary_len)
         count = cs_disasm_ex(handle, binary + i, MaxGadgetByte, text_address + i, 0, &insn);
         if(count > 0)
         {
-            strcpy(temp.string, "");
+            strcpy(gadget_string, "");
             for(j = 0; j < count; j++)
             {
                 if(!strcmp(insn[j].mnemonic, "ret") && j)
                 {
-                    gadget_num++;
+                    total_gadget++;
                     for (k = 0; k < j; k++)
                     {
-                        strcat(temp.string, insn[k].mnemonic);
-                        strcat(temp.string, " ");
-                        strcat(temp.string, insn[k].op_str);
-                        strcat(temp.string, " ; ");
+                        strcat(gadget_string, insn[k].mnemonic);
+                        strcat(gadget_string, " ");
+                        strcat(gadget_string, insn[k].op_str);
+                        strcat(gadget_string, " ; ");
                     }
-                    strcat(temp.string, "ret");
-                    printf("0x0%x:\t%s\n", text_address + i, temp.string);
-                    strcpy(temp.string, "");
+                    strcat(gadget_string, "ret");
+                    printf("0x0%x:\t%s\n", text_address + i, gadget_string);
+                    strcpy(gadget_string, "");
+                    break;
                 }
             }
+            cs_free(insn, count);
         }
     }
-    printf("Gadget find = %d\n",gadget_num);
+    printf("Gadget find = %d\n",total_gadget);
     cs_close(&handle);
-    cs_free(insn, count);
     return 0;
 }
 
@@ -63,7 +65,8 @@ int rop_find_gadgets(char* operate, char* operand, struct Gadget *head, unsigned
     size_t count;
     csh handle;
     cs_insn *insn;
-    struct Gadget temp;
+    char gadget_string[MaxGadgetLen];
+    unsigned int gadget_address;
     size_t i,j;
     unsigned int text_address = 0x08048000;
 
@@ -76,32 +79,32 @@ int rop_find_gadgets(char* operate, char* operand, struct Gadget *head, unsigned
         count = cs_disasm_ex(handle, binary + i, MaxGadgetByte, text_address + i, 0, &insn);
         if(count > 0)
         {
-            strcpy(temp.string, "");
+            strcpy(gadget_string, "");
             for(j = 0; j < count; j++)
             {
                 if(!strcmp(insn[j].mnemonic, "ret") && \
                 (!strcmp(insn[j-1].mnemonic, operate) || !strcmp(operate, "xxx"))&& \
                 (!strcmp(insn[j-1].op_str, operand) || !strcmp(operand, "xxx")))
                 {
-                    strcat(temp.string, insn[j-1].mnemonic);
-                    strcat(temp.string, " ");
-                    strcat(temp.string, insn[j-1].op_str);
-                    strcat(temp.string, " ; ");
-                    temp.address = insn[j-1].address;
-                    strcat(temp.string, "ret");
+                    strcat(gadget_string, insn[j-1].mnemonic);
+                    strcat(gadget_string, " ");
+                    strcat(gadget_string, insn[j-1].op_str);
+                    strcat(gadget_string, " ; ");
+                    gadget_address = insn[j-1].address;
+                    strcat(gadget_string, "ret");
 
-                    rop_chain_list_add(head, temp.address, temp.string);
-                    strcpy(temp.string, "");
-                    cs_close(&handle);
+                    rop_chain_list_add(head, gadget_address, gadget_string);
+                    strcpy(gadget_string, "");
                     cs_free(insn, count);
+                    cs_close(&handle);
                     return 0;
                 }
             }
         }
+        cs_free(insn, count);
     }
     printf("-x--------: Can't find *%s %s ; ret*\n", operate, operand);
     cs_close(&handle);
-    cs_free(insn, count);
     return -1;
 }
 
@@ -185,4 +188,15 @@ void rop_chain_list_traverse(struct Gadget *head)
         printf("0x0%x: %s\n", temp->address, temp->string);
     }
 
+}
+
+void rop_chain_list_free(struct Gadget *head)
+{
+    struct Gadget *temp;
+    while(head->next != NULL)
+    {
+        temp = head->next;
+        head->next = head->next->next;
+        free(temp);
+    }
 }

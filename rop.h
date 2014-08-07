@@ -26,6 +26,7 @@ int rop_chain_payload(struct Gadget *head, unsigned char *binary, unsigned long 
 
 void rop_chain_list_init(struct Gadget *head);
 int rop_chain_list_add(struct Gadget *head, unsigned int address, char *string);
-void rop_chain_list_traverse(struct Gadget *HEAD);
+void rop_chain_list_traverse(struct Gadget *head);
+void rop_chain_list_free(struct Gadget *head);
 
 #endif
