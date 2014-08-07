@@ -8,6 +8,11 @@ int rop_chain(unsigned char *binary, unsigned long binary_len)
 
     struct Gadget *head;
     head = (struct Gadget *)malloc(sizeof(struct Gadget));
+    if(!head)
+    {
+        fprintf(stderr ,"malloc failed.\n");
+        return -1;
+    }
 
     if (cs_open(CS_ARCH_X86, CS_MODE_32, &handle) != CS_ERR_OK)
     {
@@ -31,8 +36,10 @@ int rop_chain(unsigned char *binary, unsigned long binary_len)
     } 
     else
     {
-        printf("ERROR: Failed to disassemble given code!\n");
+        fprintf(stderr ,"Failed to disassemble given code!\n");
+        return -1;
     }
+
     cs_close(&handle);
     return 0;
 }
@@ -80,6 +87,7 @@ void rop_chain_list_add(struct Gadget *head, unsigned int address, char *string)
     if(!gadget)
     {
         fprintf(stderr ,"malloc failed.\n");
+        exit(-1);
     }
     gadget->address = address;
     gadget->next = NULL;

@@ -9,10 +9,15 @@ int main(int argc, char** argv)
 
     if(argc < 2)
     {
-        printf("./ropchain <Binary File>\n");
+        fprintf(stderr ,"./ropchain <Binary File>\n");
         return -1;
     }
     fp = fopen(argv[1], "rb");
+    if(!fp)
+    {
+        fprintf(stderr ,"Fail to open file.\n");
+        return -1;
+    }
 
     //Get file length
     fseek(fp, 0, SEEK_END);
@@ -21,14 +26,17 @@ int main(int argc, char** argv)
 
     //Allocate memory
     binary = (unsigned char *)malloc(binary_len+1);
-    if(fp)
+    if(!binary)
     {
-        result = fread(binary, binary_len, 1, fp);
+        fprintf(stderr ,"malloc failed.\n");
+        return -1;
     }
+    result = fread(binary, binary_len, 1, fp);
     if(result > 0)
     {
         rop_chain(binary, binary_len);
     }
+
     free(binary);
     fclose(fp);
     return 0;
