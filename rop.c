@@ -70,7 +70,7 @@ int rop_find_gadgets(char* operate, char* operand, size_t count, cs_insn *insn, 
 void rop_chain_list_init(struct Gadget *head)
 {
     head->next = 0;
-    head->last = 0;
+    head->prev = 0;
 }
 
 void rop_chain_list_add(struct Gadget *head, unsigned int address, char *string)
@@ -84,15 +84,16 @@ void rop_chain_list_add(struct Gadget *head, unsigned int address, char *string)
     gadget->address = address;
     gadget->next = NULL;
     strcpy(gadget->string, string);
-    if(head->last)
+    if(head->next)
     {
-        head->last->next = gadget;
-        head->last = gadget;
+        gadget->prev = head->prev;
+        head->prev->next = gadget;
+        head->prev = gadget;
     }
     else
     {
         head->next = gadget;
-        head->last = gadget;
+        head->prev = gadget;
     }
 }
 

@@ -12,7 +12,7 @@ struct Gadget{
     char string[100];
     unsigned int address;
     struct Gadget *next;
-    struct Gadget *last;
+    struct Gadget *prev;
 };
 
 int rop_chains(unsigned char *binary, unsigned long binary_len);
