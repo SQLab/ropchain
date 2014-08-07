@@ -2,10 +2,6 @@
 
 int rop_chain(unsigned char *binary, unsigned long binary_len)
 {
-    size_t count;
-    csh handle;
-    cs_insn *insn;
-
     struct Gadget *head;
     head = (struct Gadget *)malloc(sizeof(struct Gadget));
     if(!head)
@@ -13,63 +9,62 @@ int rop_chain(unsigned char *binary, unsigned long binary_len)
         fprintf(stderr ,"malloc failed.\n");
         return -1;
     }
+    rop_chain_list_init(head);
+    rop_find_gadgets("pop", "eax", head, binary, binary_len);
+    rop_find_gadgets("pop", "ebx", head, binary, binary_len);
+    rop_find_gadgets("pop", "ecx", head, binary, binary_len);
+    rop_find_gadgets("pop", "edx", head, binary, binary_len);
+    rop_find_gadgets("xor", "eax, eax", head, binary, binary_len);
+    rop_find_gadgets("int", "0x80", head, binary, binary_len);
 
-    if (cs_open(CS_ARCH_X86, CS_MODE_32, &handle) != CS_ERR_OK)
-    {
-        return -1;
-    }
-
-    count = cs_disasm_ex(handle, binary, binary_len, 0x08048000, 0, &insn);
-    if (count > 0) 
-    {
-        rop_chain_list_init(head);
-
-        rop_find_gadgets("pop", "eax", count, insn, head);
-        rop_find_gadgets("pop", "ebx", count, insn, head);
-        rop_find_gadgets("pop", "ecx", count, insn, head);
-        rop_find_gadgets("pop", "edx", count, insn, head);
-        rop_find_gadgets("xor", "eax, eax", count, insn, head);
-        rop_find_gadgets("int", "0x80", count, insn, head);
-
-        rop_chain_list_traverse(head);
-        cs_free(insn, count);
-    } 
-    else
-    {
-        fprintf(stderr ,"Failed to disassemble given code!\n");
-        return -1;
-    }
-
-    cs_close(&handle);
+    rop_chain_list_traverse(head);
     return 0;
 }
 
-int rop_find_gadgets(char* operate, char* operand, size_t count, cs_insn *insn, struct Gadget *head)
+int rop_find_gadgets(char* operate, char* operand, struct Gadget *head, unsigned char *binary, unsigned long binary_len)
 {
-    size_t j;
+    size_t count;
+    csh handle;
+    cs_insn *insn;
     struct Gadget temp;
+    size_t i,j;
+    unsigned int text_address = 0x08048000;
 
-    strcpy(temp.string, "");
-
-    for (j = 0; j < count; j++) 
+    if(cs_open(CS_ARCH_X86, CS_MODE_32, &handle) != CS_ERR_OK)
     {
-        if(!strcmp(insn[j].mnemonic, "ret") && \
+        return -1;
+    }
+    for(i = 0; i < binary_len - MaxGadgetByte; i++)
+    {
+        count = cs_disasm_ex(handle, binary + i, MaxGadgetByte, text_address + i, 0, &insn);
+        if(count > 0)
+        {
+            strcpy(temp.string, "");
+            for(j = 0; j < count; j++)
+            {
+                if(!strcmp(insn[j].mnemonic, "ret") && \
                 (!strcmp(insn[j-1].mnemonic, operate) || !strcmp(operate, "xxx"))&& \
                 (!strcmp(insn[j-1].op_str, operand) || !strcmp(operand, "xxx")))
-        {
-            strcat(temp.string, insn[j-1].mnemonic);
-            strcat(temp.string, " ");
-            strcat(temp.string, insn[j-1].op_str);
-            strcat(temp.string, " ; ");
-            temp.address = insn[j-1].address;
-            strcat(temp.string, "ret");
+                {
+                    strcat(temp.string, insn[j-1].mnemonic);
+                    strcat(temp.string, " ");
+                    strcat(temp.string, insn[j-1].op_str);
+                    strcat(temp.string, " ; ");
+                    temp.address = insn[j-1].address;
+                    strcat(temp.string, "ret");
 
-            rop_chain_list_add(head, temp.address, temp.string);
-            strcpy(temp.string, "");
-            return 0;
+                    rop_chain_list_add(head, temp.address, temp.string);
+                    strcpy(temp.string, "");
+                    cs_close(&handle);
+                    cs_free(insn, count);
+                    return 0;
+                }
+            }
         }
     }
     printf("-x--------: Can't find *%s %s ; ret*\n", operate, operand);
+    cs_close(&handle);
+    cs_free(insn, count);
     return -1;
 }
 
