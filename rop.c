@@ -1,13 +1,13 @@
 #include "rop.h"
 
-int rop_findgadgets(unsigned char *binary, unsigned long binary_len)
+int rop_chain(unsigned char *binary, unsigned long binary_len)
 {
     size_t count;
     csh handle;
     cs_insn *insn;
 
-    struct Chain_List *LIST;
-    LIST = (struct Chain_List *)malloc(sizeof(struct Chain_List));
+    struct Gadget *head;
+    head = (struct Gadget *)malloc(sizeof(struct Gadget));
 
     if (cs_open(CS_ARCH_X86, CS_MODE_32, &handle) != CS_ERR_OK)
     {
@@ -17,16 +17,16 @@ int rop_findgadgets(unsigned char *binary, unsigned long binary_len)
     count = cs_disasm_ex(handle, binary, binary_len, 0x08048000, 0, &insn);
     if (count > 0) 
     {
-        rop_chain_list_init(LIST);
+        rop_chain_list_init(head);
 
-        rop_find("pop", "eax", count, insn,LIST);
-        rop_find("pop", "ebx", count, insn,LIST);
-        rop_find("pop", "ecx", count, insn,LIST);
-        rop_find("pop", "edx", count, insn,LIST);
-        rop_find("xor", "eax, eax", count,insn, LIST);
-        rop_find("int", "0x80", count, insn, LIST);
+        rop_find_gadgets("pop", "eax", count, insn, head);
+        rop_find_gadgets("pop", "ebx", count, insn, head);
+        rop_find_gadgets("pop", "ecx", count, insn, head);
+        rop_find_gadgets("pop", "edx", count, insn, head);
+        rop_find_gadgets("xor", "eax, eax", count, insn, head);
+        rop_find_gadgets("int", "0x80", count, insn, head);
 
-        rop_chain_list_traverse(LIST);
+        rop_chain_list_traverse(head);
         cs_free(insn, count);
     } 
     else
@@ -37,12 +37,12 @@ int rop_findgadgets(unsigned char *binary, unsigned long binary_len)
     return 0;
 }
 
-int rop_find(char* operate, char* operand, size_t count, cs_insn *insn, struct Chain_List *LIST)
+int rop_find_gadgets(char* operate, char* operand, size_t count, cs_insn *insn, struct Gadget *head)
 {
     size_t j;
-    struct Gadget TEMP;
+    struct Gadget temp;
 
-    strcpy(TEMP.string, "");
+    strcpy(temp.string, "");
 
     for (j = 0; j < count; j++) 
     {
@@ -50,59 +50,58 @@ int rop_find(char* operate, char* operand, size_t count, cs_insn *insn, struct C
                 (!strcmp(insn[j-1].mnemonic, operate) || !strcmp(operate, "xxx"))&& \
                 (!strcmp(insn[j-1].op_str, operand) || !strcmp(operand, "xxx")))
         {
-            strcat(TEMP.string, insn[j-1].mnemonic);
-            strcat(TEMP.string, " ");
-            strcat(TEMP.string, insn[j-1].op_str);
-            strcat(TEMP.string, " ; ");
-            TEMP.address = insn[j-1].address;
-            strcat(TEMP.string, "ret");
+            strcat(temp.string, insn[j-1].mnemonic);
+            strcat(temp.string, " ");
+            strcat(temp.string, insn[j-1].op_str);
+            strcat(temp.string, " ; ");
+            temp.address = insn[j-1].address;
+            strcat(temp.string, "ret");
 
-            rop_chain_list_add(LIST, TEMP.address, TEMP.string);
-            strcpy(TEMP.string, "");
+            rop_chain_list_add(head, temp.address, temp.string);
+            strcpy(temp.string, "");
             return 0;
         }
     }
-    printf("-x--------: Can't find '%s %s; ret'\n", operate, operand);
+    printf("-x--------: Can't find *%s %s ; ret*\n", operate, operand);
     return -1;
 }
 
 
-void rop_chain_list_init(struct Chain_List *LIST)
+void rop_chain_list_init(struct Gadget *head)
 {
-    LIST->first = LIST->last = 0;
-    LIST->count = 0;
+    head->next = 0;
+    head->last = 0;
 }
 
-void rop_chain_list_add(struct Chain_List *LIST, unsigned int address, char *string)
+void rop_chain_list_add(struct Gadget *head, unsigned int address, char *string)
 {
-    struct Gadget *GADGET;
-    GADGET = calloc(1, sizeof(struct Gadget));
-    if(!GADGET)
+    struct Gadget *gadget;
+    gadget = (struct Gadget *)malloc(sizeof(struct Gadget));
+    if(!gadget)
     {
-        fprintf(stderr ,"calloc failed.\n");
+        fprintf(stderr ,"malloc failed.\n");
     }
-    GADGET->address = address;
-    strcpy(GADGET->string, string);
-    if(LIST->last)
+    gadget->address = address;
+    gadget->next = NULL;
+    strcpy(gadget->string, string);
+    if(head->last)
     {
-        LIST->last->next = GADGET;
-        GADGET->prev = LIST->last;
-        LIST->last = GADGET;
+        head->last->next = gadget;
+        head->last = gadget;
     }
     else
     {
-        LIST->first = GADGET;
-        LIST->last = GADGET;
+        head->next = gadget;
+        head->last = gadget;
     }
-    LIST->count++;
 }
 
-void rop_chain_list_traverse(struct Chain_List *LIST)
+void rop_chain_list_traverse(struct Gadget *head)
 {
-    struct Gadget *TEMP;
-    for(TEMP = LIST->first; TEMP; TEMP = TEMP->next)
+    struct Gadget *temp;
+    for(temp = head->next; temp; temp = temp->next)
     {
-        printf("0x0%x: %s\n", TEMP->address, TEMP->string);
+        printf("0x0%x: %s\n", temp->address, temp->string);
     }
 
 }

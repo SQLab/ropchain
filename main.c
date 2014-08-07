@@ -27,7 +27,7 @@ int main(int argc, char** argv)
     }
     if(result > 0)
     {
-        rop_findgadgets(binary, binary_len);
+        rop_chain(binary, binary_len);
     }
     free(binary);
     fclose(fp);

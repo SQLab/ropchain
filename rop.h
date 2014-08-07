@@ -9,23 +9,17 @@
 #include <capstone/capstone.h>
 
 struct Gadget{
-    char string[500];
+    char string[100];
     unsigned int address;
-    struct Gadget *prev;
     struct Gadget *next;
-};
-
-struct Chain_List{
-    int count;
-    struct Gadget *first;
     struct Gadget *last;
 };
 
-int rop_findgadgets(unsigned char *binary, unsigned long binary_len);
-int rop_find(char* operate, char* operand, size_t count, cs_insn *insn, struct Chain_List *LIST);
+int rop_chains(unsigned char *binary, unsigned long binary_len);
+int rop_find_gadgets(char* operate, char* operand, size_t count, cs_insn *insn, struct Gadget *head);
 
-void rop_chain_list_init(struct Chain_List *LIST);
-void rop_chain_list_add(struct Chain_List *LIST, unsigned int address, char *string);
-void rop_chain_list_traverse(struct Chain_List *LIST);
+void rop_chain_list_init(struct Gadget *head);
+void rop_chain_list_add(struct Gadget *head, unsigned int address, char *string);
+void rop_chain_list_traverse(struct Gadget *HEAD);
 
 #endif
