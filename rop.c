@@ -10,6 +10,7 @@ int rop_chain(unsigned char *binary, unsigned long binary_len)
         return -1;
     }
     rop_parse_gadgets(root, binary, binary_len);
+    tree_free(root);
     return 0;
 }
 

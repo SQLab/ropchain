@@ -27,6 +27,7 @@ int tree_build(struct Node* root, unsigned int address, cs_insn *insn, size_t le
         }
         node[i]->address = 0;
         node[i]->leftchild = NULL;
+        node[i]->rightsibling = NULL;
     }
     parent = root;
     for(i = 0; i < len; i++)
@@ -91,4 +92,22 @@ unsigned int tree_search(struct Node* root, char* gadget_string)
 
 void tree_free(struct Node* root)
 {
+    struct Node *temp, *node;
+    node = root;
+    while(node->leftchild)
+    {
+        tree_free(node->leftchild);
+        temp = node;
+        node = node->leftchild;
+        temp->leftchild = NULL;
+    }
+    node = root;
+    while(node->rightsibling)
+    {
+        tree_free(node->rightsibling);
+        temp = node;
+        node = node->rightsibling;
+        temp->rightsibling = NULL;
+    }
+    free(root);
 }
