@@ -19,6 +19,7 @@ struct Gadget{
 
 int rop_chains(unsigned char *binary, unsigned long binary_len);
 int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long binary_len);
+unsigned int rop_search_gadgets(struct Node *root, char *gadget_string);
 
 void rop_chain_list_init(struct Gadget *head);
 void rop_chain_list_traverse(struct Gadget *head);

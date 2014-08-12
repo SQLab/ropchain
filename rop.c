@@ -10,6 +10,10 @@ int rop_chain(unsigned char *binary, unsigned long binary_len)
         return -1;
     }
     rop_parse_gadgets(root, binary, binary_len);
+    rop_search_gadgets(root, "pop eax;ret");
+    rop_search_gadgets(root, "pop ebx;ret");
+    rop_search_gadgets(root, "pop ecx;ret");
+    rop_search_gadgets(root, "pop edx;ret");
     tree_free(root);
     return 0;
 }
@@ -44,8 +48,11 @@ int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long bi
                     for (k = 0; k < j; k++)
                     {
                         strcat(gadget_string, insn[k].mnemonic);
-                        strcat(gadget_string, " ");
-                        strcat(gadget_string, insn[k].op_str);
+                        if(strlen(insn[k].op_str) > 0)
+                        {
+                            strcat(gadget_string, " ");
+                            strcat(gadget_string, insn[k].op_str);
+                        }
                         strcat(gadget_string, " ; ");
                         /* tree build */
                         tree_build(root, 0, insn, j+1);
@@ -63,6 +70,26 @@ int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long bi
     printf("Gadget find = %d\n",total_gadget);
     cs_close(&handle);
     return 0;
+}
+
+unsigned int rop_search_gadgets(struct Node *root, char *gadget_string)
+{
+    char *token;
+    char copy_string[MaxGadgetLen];
+    strcpy(copy_string, gadget_string);
+    token = strtok(copy_string, ";");
+    while(token != NULL)
+    {
+        root = tree_search(root, token);
+        if(!root)
+        {
+            printf("can't find gadget *%s*\n", gadget_string);
+            return 0;
+        }
+        token = strtok(NULL, ";");
+    }
+    printf("0x0%x %s\n", root->address, gadget_string);
+    return root->address;
 }
 
 void rop_chain_list_init(struct Gadget *head)

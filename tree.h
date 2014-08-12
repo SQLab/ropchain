@@ -17,7 +17,7 @@ struct Node{
 
 void tree_init(struct Node* root);
 int tree_build(struct Node* root, unsigned int address, cs_insn *insn, size_t len);
-unsigned int tree_search(struct Node* root, char* gadget_string);
+struct Node *tree_search(struct Node* root, char* gadget_string);
 void tree_free(struct Node* root);
 
 #endif

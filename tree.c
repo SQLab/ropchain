@@ -39,8 +39,11 @@ int tree_build(struct Node* root, unsigned int address, cs_insn *insn, size_t le
         }
         strcpy(instruct_string,"");
         strcat(instruct_string, insn[i].mnemonic);
-        strcat(instruct_string, " ");
-        strcat(instruct_string, insn[i].op_str);
+        if(strlen(insn[i].op_str) > 0)
+        {
+            strcat(instruct_string, " ");
+            strcat(instruct_string, insn[i].op_str);
+        }
         if(i == len-1)
         {
             /* leaf */
@@ -85,8 +88,18 @@ int tree_build(struct Node* root, unsigned int address, cs_insn *insn, size_t le
     return 0;
 }
 
-unsigned int tree_search(struct Node* root, char* gadget_string)
+struct Node *tree_search(struct Node* root, char* string)
 {
+    struct Node* child;
+    child = root->leftchild;
+    while(child)
+    {
+        if(!strcmp(string, child->string))
+        {
+            return child;
+        }
+        child = child->rightsibling;
+    }
     return 0;
 }
 
