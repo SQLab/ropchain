@@ -14,6 +14,7 @@ int rop_chain(unsigned char *binary, unsigned long binary_len)
     rop_search_gadgets(root, "pop ebx;ret");
     rop_search_gadgets(root, "pop ecx;ret");
     rop_search_gadgets(root, "pop edx;ret");
+    rop_search_gadgets(root, "int 0x80");
     tree_free(root);
     return 0;
 }
@@ -61,6 +62,15 @@ int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long bi
                     /* print all gadgets */
                     printf("%d\t0x0%x:\t%s\n", j+1, text_address + i, gadget_string);
                     strcpy(gadget_string, "");
+                    break;
+                }
+                else if(j == 0 && !strcmp(insn[j].mnemonic, "int") && !strcmp(insn[j].op_str, "0x80"))
+                {
+                    total_gadget++;
+                    /* tree build */
+                    tree_build(root, 0, insn, j+1);
+                    /* print int80 gadgets */
+                    printf("%d\t0x0%"PRIx64":\tint 0x80\n", j+1, insn[j].address);
                     break;
                 }
             }
