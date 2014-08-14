@@ -1,8 +1,9 @@
 #include "rop.h"
 
-int rop_chain(unsigned char *binary, unsigned long binary_len)
+int rop_chain(unsigned char *binary, unsigned long binary_len, unsigned char **chain)
 {
     struct Node *root;
+    int result;
     root = (struct Node *)malloc(sizeof(struct Node));
     if(!root)
     {
@@ -16,10 +17,21 @@ int rop_chain(unsigned char *binary, unsigned long binary_len)
         fprintf(stderr ,"malloc failed.\n");
         return -1;
     }
+    *chain = (unsigned char *)malloc(sizeof(unsigned char));
+    if(!*chain)
+    {
+        fprintf(stderr ,"malloc failed.\n");
+        return -1;
+    }
     rop_parse_gadgets(root, binary, binary_len);
-    rop_chain_execve(root, head);
+    result = rop_chain_execve(root, head);
+    if(!result)
+    {
+        result = rop_chain_list_traverse(head, chain);
+    }
+    rop_chain_list_free(head);
     tree_free(root);
-    return 0;
+    return result;
 }
 
 int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long binary_len)
@@ -89,6 +101,7 @@ int rop_chain_execve(struct Node *root, struct Gadget *head)
 {
     unsigned int result = 1;
     size_t i = 0;
+    printf("\n--- Start chain *execve(\"/bin/sh\")* gadgets ---\n\n");
     rop_chain_list_init(head);
     result *= rop_search_gadgets(root, head, "pop ebx;ret", 1);
     rop_chain_list_add(head, 0x080ef060, "@. data");
@@ -121,12 +134,8 @@ int rop_chain_execve(struct Node *root, struct Gadget *head)
     if(!result)
     {
         printf("chain execve failed\n");
+        return -1;
     }
-    else
-    {
-        rop_chain_list_traverse(head);
-    }
-    rop_chain_list_free(head);
     return 0;
 }
 
@@ -195,14 +204,25 @@ int rop_chain_list_add(struct Gadget *head, unsigned int address, char *string)
     return 0;
 }
 
-void rop_chain_list_traverse(struct Gadget *head)
+int rop_chain_list_traverse(struct Gadget *head, unsigned char **chain)
 {
     struct Gadget *temp;
+    unsigned char *rechain;
+    size_t i = 0;
     for(temp = head->next; temp; temp = temp->next)
     {
+        i++;
         printf("0x%08x: %s\n", temp->address, temp->string);
+        rechain = (unsigned char*)realloc(*chain, i * 4 * sizeof(unsigned char));
+        if(!rechain)
+        {
+            fprintf(stderr ,"realloc failed.\n");
+            exit(-1);
+        }
+        *chain = rechain;
+        memcpy(*chain + (i-1) * 4, &temp->address, 4);
     }
-
+    return i * 4;
 }
 
 void rop_chain_list_free(struct Gadget *head)

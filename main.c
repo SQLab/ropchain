@@ -4,8 +4,11 @@ int main(int argc, char** argv)
 {
     FILE *fp;
     unsigned char *binary;
+    unsigned char *chain;
     unsigned long binary_len;
+    int i;
     int result = 0;
+    int chain_len = 0;
 
     if(argc < 2)
     {
@@ -34,10 +37,16 @@ int main(int argc, char** argv)
     result = fread(binary, binary_len, 1, fp);
     if(result > 0)
     {
-        rop_chain(binary, binary_len);
+        chain_len = rop_chain(binary, binary_len, &chain);
+        if(chain_len > 0)
+        {
+            printf("\n--- Result ---\n");
+            for(i = 0; i < chain_len; i++)
+                printf("\\x%02x",chain[i]);
+            printf("\n");
+        }
+        free(binary);
+        fclose(fp);
     }
-
-    free(binary);
-    fclose(fp);
     return 0;
 }
