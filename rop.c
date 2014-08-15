@@ -129,7 +129,13 @@ int rop_chain_execve(struct Node *root, struct Gadget *head)
 
     result *= rop_search_gadgets(root, head, "xor eax, eax;ret", 1);
     for(i = 0; i < 11; i++)
-        result *= rop_search_gadgets(root, head, "inc eax;ret", 1);
+    {
+        if(rop_search_gadgets(root, head, "inc eax;ret", 1) == 0)
+        {
+            result *= rop_search_gadgets(root, head, "inc eax;pop edi;ret", 1);
+            rop_chain_list_add(head, 0x41414141, "padding");
+        }
+    }
     result *= rop_search_gadgets(root, head, "int 0x80", 1);
     if(!result)
     {
@@ -163,7 +169,7 @@ unsigned int rop_search_gadgets(struct Node *root, struct Gadget *head, char *ga
     {
         printf("0x0%x: %s\n", root->address, gadget_string);
     }
-    return root->address;
+    return 1;
 }
 
 void rop_chain_list_init(struct Gadget *head)

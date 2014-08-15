@@ -91,12 +91,34 @@ int tree_build(struct Node* root, unsigned int address, cs_insn *insn, size_t le
 struct Node *tree_search(struct Node* root, char* string)
 {
     struct Node* child;
+    unsigned char *address;
+    size_t i;
     child = root->leftchild;
     while(child)
     {
         if(!strcmp(string, child->string))
         {
-            return child;
+            /* badbyte cheching */
+            if(child->address)
+            {
+                address = (unsigned char*)&child->address;
+                for(i = 0; i < 4; i++)
+                {
+                    if(address[i] == 0x09 || address[i] == 0x00 \
+                    || address[i] == 0x0a || address[i] == 0x20)
+                    {
+                        break;
+                    }
+                    if(i == 3)
+                    {
+                        return child;
+                    }
+                }
+            }
+            else
+            {
+                return child;
+            }
         }
         child = child->rightsibling;
     }
