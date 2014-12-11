@@ -17,8 +17,8 @@ struct Gadget{
     struct Gadget *prev;
 };
 
-int rop_chain(unsigned char **chain, unsigned char *binary, unsigned long binary_len, bool arg_print);
-int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long binary_len, bool arg_print);
+int rop_chain(unsigned char **chain, unsigned char *binary, unsigned long binary_len, struct Arg *arg);
+int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long binary_len, struct Arg *arg);
 unsigned int rop_search_gadgets(struct Node *root, struct Gadget *head, char *gadget_string, int add_list);
 int rop_chain_execve(struct Node *root, struct Gadget *head);
 

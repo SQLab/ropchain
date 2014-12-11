@@ -17,9 +17,18 @@ int main(int argc, char** argv)
     unsigned char *chain;
     int chain_len = 0;
     int i;
-    int offset = 0;
     char *endptr;
-    bool arg_print = 1;
+    struct Arg *arg;
+
+    //Arg init
+    arg = (struct Arg *)malloc(sizeof(struct Arg));
+    if(!arg)
+    {
+        fprintf(stderr ,"malloc failed.\n");
+        return -1;
+    }
+    arg->print = 1;
+    arg->offset = 0;
 
     if(argc < 2)
     {
@@ -52,6 +61,7 @@ int main(int argc, char** argv)
     argv++;
     argc--;
 
+
     //Parse command
     while ((argc > 1) && (argv[1][0] == '-'))
     {
@@ -62,11 +72,11 @@ int main(int argc, char** argv)
                 case 'p':
                     if(!strcmp(argv[2], "false") || !strcmp(argv[2], "0"))
                     {
-                        arg_print = 0;
+                        arg->print = 0;
                     }
                     break;
                 case 'o':
-                    offset = strtol(argv[2], &endptr, 10);
+                    arg->offset = strtol(argv[2], &endptr, 10);
                     break;
                 default:
                     usage();
@@ -80,11 +90,11 @@ int main(int argc, char** argv)
             return -1;
         }
     }
-    chain_len = rop_chain(&chain, binary, binary_len, arg_print);
+    chain_len = rop_chain(&chain, binary, binary_len, arg);
     if(chain_len > 0)
     {
         printf("\n--- Result ---\n");
-        for(i = 0; i < offset; i++)
+        for(i = 0; i < arg->offset; i++)
             printf("\\x41");
         for(i = 0; i < chain_len; i++)
             printf("\\x%02x",chain[i]);

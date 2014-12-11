@@ -1,6 +1,6 @@
 #include "rop.h"
 
-int rop_chain(unsigned char **chain, unsigned char *binary, unsigned long binary_len, bool arg_print)
+int rop_chain(unsigned char **chain, unsigned char *binary, unsigned long binary_len, struct Arg *arg)
 {
     struct Node *root;
     int result;
@@ -23,7 +23,7 @@ int rop_chain(unsigned char **chain, unsigned char *binary, unsigned long binary
         fprintf(stderr ,"malloc failed.\n");
         return -1;
     }
-    rop_parse_gadgets(root, binary, binary_len, arg_print);
+    rop_parse_gadgets(root, binary, binary_len, arg);
     result = rop_chain_execve(root, head);
     if(!result)
     {
@@ -34,7 +34,7 @@ int rop_chain(unsigned char **chain, unsigned char *binary, unsigned long binary
     return result;
 }
 
-int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long binary_len, bool arg_print)
+int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long binary_len, struct Arg *arg)
 {
     size_t count;
     csh handle;
@@ -74,7 +74,7 @@ int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long bi
                         tree_build(root, 0, insn, j+1);
                     }
                     strcat(gadget_string, "ret");
-                    if(arg_print == 1)
+                    if(arg->print == 1)
                     {
                         /* print all gadgets */
                         printf("%d\t0x0%x:\t%s\n", j+1, text_address + i, gadget_string);
@@ -87,7 +87,7 @@ int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long bi
                     total_gadget++;
                     /* tree build */
                     tree_build(root, 0, insn, j+1);
-                    if(arg_print == 1)
+                    if(arg->print == 1)
                     {
                         /* print int80 gadgets */
                         printf("%d\t0x0%"PRIx64":\tint 0x80\n", j+1, insn[j].address);
