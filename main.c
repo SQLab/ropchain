@@ -3,11 +3,14 @@
 void usage(void)
 {
     printf("Usage:\n");
-    printf(" ropchain <file> [-p <bool>] [-o <offset>]\n");
-    printf(" -p\tPrint all gadgets\n");
-    printf(" -o\tAdd padding(offset) bytes\n");
+    printf(" ropchain <file> [-p <bool>] [-o <offset>] [-b <badbyte>]\n");
+    printf(" -p\tPrint all gadgets.\n");
+    printf(" -o\tAdd padding(offset) bytes to payload.\n");
+    printf(" -b\tBypass badbyte gadgets. ex: \"00|20|0a\"\n");
     exit (-1);
 }
+
+int parse_arg(int argc, char** argv, struct Arg *arg);
 
 int main(int argc, char** argv)
 {
@@ -17,18 +20,7 @@ int main(int argc, char** argv)
     unsigned char *chain;
     int chain_len = 0;
     int i;
-    char *endptr;
     struct Arg *arg;
-
-    //Arg init
-    arg = (struct Arg *)malloc(sizeof(struct Arg));
-    if(!arg)
-    {
-        fprintf(stderr ,"malloc failed.\n");
-        return -1;
-    }
-    arg->print = 1;
-    arg->offset = 0;
 
     if(argc < 2)
     {
@@ -61,7 +53,37 @@ int main(int argc, char** argv)
     argv++;
     argc--;
 
+    //Arg init
+    arg = (struct Arg *)malloc(sizeof(struct Arg));
+    if(!arg)
+    {
+        fprintf(stderr ,"malloc failed.\n");
+        return -1;
+    }
+    parse_arg(argc, argv, arg);
 
+    chain_len = rop_chain(&chain, binary, binary_len, arg);
+    if(chain_len > 0)
+    {
+        printf("\n--- Result ---\n");
+        for(i = 0; i < arg->offset; i++)
+            printf("\\x41");
+        for(i = 0; i < chain_len; i++)
+            printf("\\x%02x",chain[i]);
+        printf("\n");
+    }
+    free(binary);
+    fclose(fp);
+    return 0;
+}
+
+int parse_arg(int argc, char** argv, struct Arg *arg)
+{
+    char *endptr;
+    char *pch;
+    arg->print = 1;
+    arg->offset = 0;
+    arg->badbyte_no = 0;
     //Parse command
     while ((argc > 1) && (argv[1][0] == '-'))
     {
@@ -78,6 +100,15 @@ int main(int argc, char** argv)
                 case 'o':
                     arg->offset = strtol(argv[2], &endptr, 10);
                     break;
+                case 'b':
+                    pch = strtok(argv[2], "|");
+                    while(pch != NULL)
+                    {
+                        arg->badbyte[arg->badbyte_no] = (unsigned char)strtol(pch, NULL, 16);
+                        arg->badbyte_no++;
+                        pch = strtok(NULL, "|");
+                    }
+                    break;
                 default:
                     usage();
             }
@@ -90,17 +121,4 @@ int main(int argc, char** argv)
             return -1;
         }
     }
-    chain_len = rop_chain(&chain, binary, binary_len, arg);
-    if(chain_len > 0)
-    {
-        printf("\n--- Result ---\n");
-        for(i = 0; i < arg->offset; i++)
-            printf("\\x41");
-        for(i = 0; i < chain_len; i++)
-            printf("\\x%02x",chain[i]);
-        printf("\n");
-    }
-    free(binary);
-    fclose(fp);
-    return 0;
 }

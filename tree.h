@@ -18,11 +18,13 @@ struct Node{
 struct Arg{
     bool print;
     int offset;
+    unsigned char badbyte[20];
+    unsigned int badbyte_no;
 };
 
 void tree_init(struct Node* root);
 int tree_build(struct Node* root, unsigned int address, cs_insn *insn, size_t len);
-struct Node *tree_search(struct Node* root, char* gadget_string);
+struct Node *tree_search(struct Node* root, char* gadget_string, struct Arg *arg);
 void tree_free(struct Node* root);
 
 #endif
