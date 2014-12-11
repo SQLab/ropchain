@@ -88,11 +88,11 @@ int tree_build(struct Node* root, unsigned int address, cs_insn *insn, size_t le
     return 0;
 }
 
-struct Node *tree_search(struct Node* root, char* string)
+struct Node *tree_search(struct Node* root, char* string, struct Arg *arg)
 {
     struct Node* child;
     unsigned char *address;
-    size_t i;
+    size_t i, j;
     child = root->leftchild;
     while(child)
     {
@@ -104,10 +104,13 @@ struct Node *tree_search(struct Node* root, char* string)
                 address = (unsigned char*)&child->address;
                 for(i = 0; i < 4; i++)
                 {
-                    if(address[i] == 0x09 || address[i] == 0x00 \
-                    || address[i] == 0x0a || address[i] == 0x20)
+                    for(j = 0 ; j < arg->badbyte_no; j++)
                     {
-                        break;
+                        if(address[i] == arg->badbyte[j])
+                        {
+                            i = 4;
+                            break;
+                        }
                     }
                     if(i == 3)
                     {
