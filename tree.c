@@ -174,19 +174,17 @@ void tree_free(struct Node* root)
 {
     struct Node *temp, *node;
     node = root;
-    while(node->leftchild)
+    if(node->leftchild)
     {
         tree_free(node->leftchild);
         temp = node;
-        node = node->leftchild;
         temp->leftchild = NULL;
     }
     node = root;
-    while(node->rightsibling)
+    if(node->rightsibling)
     {
         tree_free(node->rightsibling);
         temp = node;
-        node = node->rightsibling;
         temp->rightsibling = NULL;
     }
     free(root);
