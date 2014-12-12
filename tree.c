@@ -4,6 +4,7 @@ void tree_init(struct Node* root)
 {
     root->leftchild = NULL;
     root->rightsibling = NULL;
+    root->vaild = 1;
 }
 
 int tree_build(struct Node* root, unsigned int address, cs_insn *insn, size_t len)
@@ -25,6 +26,7 @@ int tree_build(struct Node* root, unsigned int address, cs_insn *insn, size_t le
             fprintf(stderr,"malloc failed.\n");
             return -1;
         }
+        node[i]->vaild = 1;
         node[i]->address = 0;
         node[i]->leftchild = NULL;
         node[i]->rightsibling = NULL;
@@ -109,8 +111,8 @@ struct Node *tree_search(struct Node* root, char* regexp_string, char* gadget_st
     {
         /* Execute regular expression */
         reti = regexec(&regex, child->string, 0, NULL, 0);
-        /* Match */
-        if(!reti)
+        /* Match and vaild */
+        if(!reti && child->vaild)
         {
             strcat(gadget_string, child->string);
             strcat(gadget_string, "; ");
@@ -153,14 +155,19 @@ struct Node *tree_search(struct Node* root, char* regexp_string, char* gadget_st
                 }
             }
         }
+        else if(!reti && !child->vaild)
+        {
+            /* Match but invaild */
+        }
         else if(reti == REG_NOMATCH)
         {
             /* No match */
         }
-        else{
-                regerror(reti, &regex, msgbuf, sizeof(msgbuf));
-                fprintf(stderr, "Regex match failed: %s\n", msgbuf);
-                exit(1);
+        else
+        {
+            regerror(reti, &regex, msgbuf, sizeof(msgbuf));
+            fprintf(stderr, "Regex match failed: %s\n", msgbuf);
+            exit(1);
         }
         child = child->rightsibling;
     }

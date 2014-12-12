@@ -13,6 +13,7 @@
 
 struct Node{
     char string[MaxInstructLen];
+    bool vaild;
     unsigned int address;
     struct Node* leftchild;
     struct Node* rightsibling;
