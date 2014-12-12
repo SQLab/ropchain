@@ -109,6 +109,7 @@ struct Node *tree_search(struct Node* root, char* regexp_string, char* gadget_st
     {
         /* Execute regular expression */
         reti = regexec(&regex, child->string, 0, NULL, 0);
+        /* Match */
         if(!reti)
         {
             strcat(gadget_string, child->string);

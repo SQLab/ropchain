@@ -12,7 +12,7 @@
 #include <capstone/capstone.h>
 
 struct Node{
-    char string[100];
+    char string[MaxInstructLen];
     unsigned int address;
     struct Node* leftchild;
     struct Node* rightsibling;
