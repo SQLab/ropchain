@@ -63,19 +63,23 @@ int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long bi
                     total_gadget++;
                     for (k = 0; k < j; k++)
                     {
-                        strcat(gadget_string, insn[k].mnemonic);
-                        if(strlen(insn[k].op_str) > 0)
+                        if(arg->print && strlen(gadget_string)
+                        + strlen(insn[k].mnemonic) + strlen(insn[k].op_str) + 7 < MaxGadgetLen)
                         {
-                            strcat(gadget_string, " ");
-                            strcat(gadget_string, insn[k].op_str);
+                            strcat(gadget_string, insn[k].mnemonic);
+                            if(strlen(insn[k].op_str) > 0)
+                            {
+                                strcat(gadget_string, " ");
+                                strcat(gadget_string, insn[k].op_str);
+                            }
+                            strcat(gadget_string, " ; ");
                         }
-                        strcat(gadget_string, " ; ");
                         /* tree build */
                         tree_build(root, 0, insn, j+1);
                     }
-                    strcat(gadget_string, "ret");
-                    if(arg->print == 1)
+                    if(arg->print && strlen(gadget_string) + 3 < MaxGadgetLen)
                     {
+                        strcat(gadget_string, "ret");
                         /* print all gadgets */
                         printf("%d\t0x0%x:\t%s\n", j+1, text_address + i, gadget_string);
                     }
