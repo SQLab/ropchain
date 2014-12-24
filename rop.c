@@ -175,7 +175,7 @@ int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, s
     struct Node *temp,* mov_temp;
     char gadget_string[MaxGadgetLen] = "";
     char regexp_string[MaxRegExpLen] = "";
-    char op[2];
+    char op[2][4];
     int i;
     printf("\n1. Build WriteMem Gadgets\n");
     while(true)
@@ -190,7 +190,7 @@ int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, s
 
         /* find mov gadget */
         memset(gadget_string, 0, MaxGadgetLen);
-        strcpy(regexp_string, "mov dword ptr .e[abcd][x]], e[abcd][x]");
+        strcpy(regexp_string, "mov dword ptr .e[abcds][xip]], e[abcds][xip]");
         mov_temp = tree_search(root, regexp_string, gadget_string, 1, arg);
         if(!mov_temp)
         {
@@ -198,20 +198,28 @@ int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, s
             return -1;
         }
         printf(" O: Find MOV Gadget \"%s\"\n", gadget_string);
+        strncpy(op[0], &gadget_string[15], 3);
+        strncpy(op[1], &gadget_string[21], 3);
+        op[0][3] = 0;
+        op[1][3] = 0;
+        if(!strcmp(op[0], "esp") || !strcmp(op[1], "esp"))
+        {
+            printf(" X: Can't use esp gadget. Try to find other mov gadget\n");
+            mov_temp->vaild = 0;
+            continue;
+        }
         rop_chain_list_add(*writeMEM, mov_temp->address, gadget_string, 1);
-        op[0] = gadget_string[16];
-        op[1] = gadget_string[22];
 
         /* find pop e_x gadget */
         for(i = 0; i < 2; i++)
         {
             memset(gadget_string, 0, MaxGadgetLen);
-            strcpy(regexp_string, "^pop e_x$");
-            regexp_string[6] = op[i];
+            strcpy(regexp_string, "^pop ___$");
+            strncpy(&regexp_string[5], op[i], 3);
             temp = tree_search(root, regexp_string, gadget_string, 1, arg);
             if(!temp)
             {
-                printf(" X: Can't find gadget \"%s\" Try find other mov gadget\n", regexp_string);
+                printf(" X: Can't find gadget \"%s\" Try to find other mov gadget\n", regexp_string);
                 mov_temp->vaild = 0;
                 rop_chain_list_free(*writeMEM);
                 i = 3;
@@ -228,13 +236,13 @@ int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, s
 
         /* find xor e_x gadget */
         memset(gadget_string, 0, MaxGadgetLen);
-        strcpy(regexp_string, "^xor e_x, e_x");
-        regexp_string[6] = op[1];
-        regexp_string[11] = op[1];
+        strcpy(regexp_string, "^xor ___, ___");
+        strncpy(&regexp_string[5], op[1], 3);
+        strncpy(&regexp_string[10], op[1], 3);
         temp = tree_search(root, regexp_string, gadget_string, 1, arg);
         if(!temp)
         {
-            printf(" X: Can't find gadget \"%s\" Try find other mov gadget\n", regexp_string);
+            printf(" X: Can't find gadget \"%s\" Try to find other mov gadget\n", regexp_string);
             mov_temp->vaild = 0;
             rop_chain_list_free(*writeMEM);
             continue;
