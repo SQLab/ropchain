@@ -3,10 +3,11 @@
 void usage(void)
 {
     printf("Usage:\n");
-    printf(" ropchain <file> [-p <bool>] [-o <offset>] [-b <badbyte>]\n");
+    printf(" ropchain <file> [-p <bool>] [-o <offset>] [-b <badbyte>] [-l <length>]\n");
     printf(" -p\tPrint all gadgets.\n");
     printf(" -o\tAdd padding(offset) bytes to payload.\n");
     printf(" -b\tBypass badbyte gadgets. ex: \"00|20|0a\"\n");
+    printf(" -l\tMaximum gadgets length\"\n");
     exit (-1);
 }
 
@@ -82,6 +83,7 @@ int parse_arg(int argc, char** argv, struct Arg *arg)
     char *endptr;
     char *pch;
     arg->print = 1;
+    arg->depth = 2;
     arg->offset = 0;
     arg->badbyte_no = 0;
     //Parse command
@@ -99,6 +101,9 @@ int parse_arg(int argc, char** argv, struct Arg *arg)
                     break;
                 case 'o':
                     arg->offset = strtol(argv[2], &endptr, 10);
+                    break;
+                case 'l':
+                    arg->depth = strtol(argv[2], &endptr, 10);
                     break;
                 case 'b':
                     pch = strtok(argv[2], "|");

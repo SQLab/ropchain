@@ -150,7 +150,15 @@ struct Node *tree_search(struct Node* root, char* regexp_string, char* gadget_st
                     {
                         regfree(&regex);
                         return temp;
-
+                    }
+                }
+                else
+                {
+                    temp = tree_search(child, "^", gadget_string, --depth, arg);
+                    if(temp)
+                    {
+                        regfree(&regex);
+                        return temp;
                     }
                 }
             }

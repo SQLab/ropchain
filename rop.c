@@ -172,14 +172,15 @@ int rop_write_memory_gadget(struct Gadget *head, struct Gadget *writeMEM, unsign
 }
 int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, struct Arg *arg)
 {
-    struct Node *temp,* mov_temp;
+    struct Node *temp,*mov_temp;
     char gadget_string[MaxGadgetLen] = "";
     char regexp_string[MaxRegExpLen] = "";
     char op[2][4];
-    int i;
+    int i, depth, restart;
     printf("\n1. Build WriteMem Gadgets\n");
     while(true)
     {
+        restart = 0;
         *writeMEM = (struct Gadget *)malloc(sizeof(struct Gadget));
         if(!*writeMEM)
         {
@@ -191,13 +192,20 @@ int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, s
         /* find mov gadget */
         memset(gadget_string, 0, MaxGadgetLen);
         strcpy(regexp_string, "mov dword ptr .e[abcds][xip]], e[abcds][xip]");
-        mov_temp = tree_search(root, regexp_string, gadget_string, 1, arg);
-        if(!mov_temp)
+        for(depth = 1; depth < arg->depth; depth++)
         {
-            printf(" X: Can't find gadget \"%s\"\n", regexp_string);
-            return -1;
+            mov_temp = tree_search(root, regexp_string, gadget_string, depth, arg);
+            if(mov_temp)
+            {
+                printf(" O: Find MOV Gadget \"%s\"\n", gadget_string);
+                break;
+            }
+            else if(depth == arg->depth-1)
+            {
+                printf(" X: Can't find gadget \"%s\"\n", regexp_string);
+                return -1;
+            }
         }
-        printf(" O: Find MOV Gadget \"%s\"\n", gadget_string);
         strncpy(op[0], &gadget_string[15], 3);
         strncpy(op[1], &gadget_string[21], 3);
         op[0][3] = 0;
@@ -216,20 +224,34 @@ int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, s
             memset(gadget_string, 0, MaxGadgetLen);
             strcpy(regexp_string, "^pop ___$");
             strncpy(&regexp_string[5], op[i], 3);
-            temp = tree_search(root, regexp_string, gadget_string, 1, arg);
-            if(!temp)
+            for(depth = 1; depth < arg->depth; depth++)
             {
-                printf(" X: Can't find gadget \"%s\" Try to find other mov gadget\n", regexp_string);
-                mov_temp->vaild = 0;
-                rop_chain_list_free(*writeMEM);
-                i = 3;
+                temp = tree_search(root, regexp_string, gadget_string, depth, arg);
+                if(temp)
+                {
+                    printf(" O: Find POP Gadget \"%s\"\n", gadget_string);
+                    break;
+                }
+                else if(depth == arg->depth-1)
+                {
+                    printf(" X: Can't find gadget \"%s\" Try to find other mov gadget\n", regexp_string);
+                    mov_temp->vaild = 0;
+                    rop_chain_list_free(*writeMEM);
+                    restart = 1;
+                    break;
+                }
+            }
+            if(!restart)
+            {
+                rop_chain_list_add(*writeMEM, 0xffffffff, "temp", 0);
+                rop_chain_list_add(*writeMEM, temp->address, gadget_string, 0);
+            }
+            else
+            {
                 break;
             }
-            printf(" O: Find POP Gadget \"%s\"\n", gadget_string);
-            rop_chain_list_add(*writeMEM, 0xffffffff, "temp", 0);
-            rop_chain_list_add(*writeMEM, temp->address, gadget_string, 0);
         }
-        if(i == 3)
+        if(restart)
         {
             continue;
         }
@@ -239,15 +261,27 @@ int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, s
         strcpy(regexp_string, "^xor ___, ___");
         strncpy(&regexp_string[5], op[1], 3);
         strncpy(&regexp_string[10], op[1], 3);
-        temp = tree_search(root, regexp_string, gadget_string, 1, arg);
-        if(!temp)
+        for(depth = 1; depth < arg->depth; depth++)
         {
-            printf(" X: Can't find gadget \"%s\" Try to find other mov gadget\n", regexp_string);
-            mov_temp->vaild = 0;
-            rop_chain_list_free(*writeMEM);
+            temp = tree_search(root, regexp_string, gadget_string, depth, arg);
+            if(temp)
+            {
+                printf(" O: Find XOR Gadget \"%s\"\n", gadget_string);
+                break;
+            }
+            else if(depth == arg->depth-1)
+            {
+                printf(" X: Can't find gadget \"%s\" Try to find other mov gadget\n", regexp_string);
+                mov_temp->vaild = 0;
+                rop_chain_list_free(*writeMEM);
+                restart = 1;
+                break;
+            }
+        }
+        if(restart)
+        {
             continue;
         }
-        printf(" O: Find XOR Gadget \"%s\"\n", gadget_string);
         rop_chain_list_add(*writeMEM, temp->address, gadget_string, 0);
         break;
     }
