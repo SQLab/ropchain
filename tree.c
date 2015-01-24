@@ -4,6 +4,7 @@ void tree_init(struct Node* root)
 {
     root->leftchild = NULL;
     root->rightsibling = NULL;
+    root->vaild = 1;
 }
 
 int tree_build(struct Node* root, unsigned int address, cs_insn *insn, size_t len)
@@ -25,6 +26,7 @@ int tree_build(struct Node* root, unsigned int address, cs_insn *insn, size_t le
             fprintf(stderr,"malloc failed.\n");
             return -1;
         }
+        node[i]->vaild = 1;
         node[i]->address = 0;
         node[i]->leftchild = NULL;
         node[i]->rightsibling = NULL;
@@ -88,20 +90,37 @@ int tree_build(struct Node* root, unsigned int address, cs_insn *insn, size_t le
     return 0;
 }
 
-struct Node *tree_search(struct Node* root, char* string, struct Arg *arg)
+struct Node *tree_search(struct Node* root, char* regexp_string, char* gadget_string, int depth, struct Arg *arg)
 {
-    struct Node* child;
+    struct Node* child,* temp;
     unsigned char *address;
     size_t i, j;
+    regex_t regex;
+    int reti;
+    char msgbuf[100];
+
+    /* Compile regular expression */
+    reti = regcomp(&regex, regexp_string, 0);
+    if(reti)
+    {
+        fprintf(stderr, "Could not compile regex\n");
+        exit(1);
+    }
     child = root->leftchild;
     while(child)
     {
-        if(!strcmp(string, child->string))
+        /* Execute regular expression */
+        reti = regexec(&regex, child->string, 0, NULL, 0);
+        /* Match and vaild */
+        if(!reti && child->vaild)
         {
-            /* badbyte cheching */
+            strcat(gadget_string, child->string);
+            strcat(gadget_string, "; ");
+            /* leaf */
             if(child->address)
             {
                 address = (unsigned char*)&child->address;
+                /* badbyte cheching */
                 for(i = 0; i < 4; i++)
                 {
                     for(j = 0 ; j < arg->badbyte_no; j++)
@@ -114,17 +133,55 @@ struct Node *tree_search(struct Node* root, char* string, struct Arg *arg)
                     }
                     if(i == 3)
                     {
+                        /* Free compiled regular expression */
+                        regfree(&regex);
                         return child;
                     }
                 }
             }
+            /* not leaf */
             else
             {
-                return child;
+                /* Free compiled regular expression */
+                if(depth == 1)
+                {
+                    temp = tree_search(child, "^ret$", gadget_string, 0, arg);
+                    if(temp)
+                    {
+                        regfree(&regex);
+                        return temp;
+                    }
+                }
+                else
+                {
+                    temp = tree_search(child, "^", gadget_string, --depth, arg);
+                    if(temp)
+                    {
+                        regfree(&regex);
+                        return temp;
+                    }
+                }
             }
+        }
+        else if(!reti && !child->vaild)
+        {
+            /* Match but invaild */
+        }
+        else if(reti == REG_NOMATCH)
+        {
+            /* No match */
+        }
+        else
+        {
+            regerror(reti, &regex, msgbuf, sizeof(msgbuf));
+            fprintf(stderr, "Regex match failed: %s\n", msgbuf);
+            exit(1);
         }
         child = child->rightsibling;
     }
+    /* Free compiled regular expression */
+    regfree(&regex);
+    memset(gadget_string, 0, MaxGadgetLen);
     return 0;
 }
 
@@ -132,19 +189,17 @@ void tree_free(struct Node* root)
 {
     struct Node *temp, *node;
     node = root;
-    while(node->leftchild)
+    if(node->leftchild)
     {
         tree_free(node->leftchild);
         temp = node;
-        node = node->leftchild;
         temp->leftchild = NULL;
     }
     node = root;
-    while(node->rightsibling)
+    if(node->rightsibling)
     {
         tree_free(node->rightsibling);
         temp = node;
-        node = node->rightsibling;
         temp->rightsibling = NULL;
     }
     free(root);

@@ -63,19 +63,23 @@ int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long bi
                     total_gadget++;
                     for (k = 0; k < j; k++)
                     {
-                        strcat(gadget_string, insn[k].mnemonic);
-                        if(strlen(insn[k].op_str) > 0)
+                        if(arg->print && strlen(gadget_string)
+                        + strlen(insn[k].mnemonic) + strlen(insn[k].op_str) + 7 < MaxGadgetLen)
                         {
-                            strcat(gadget_string, " ");
-                            strcat(gadget_string, insn[k].op_str);
+                            strcat(gadget_string, insn[k].mnemonic);
+                            if(strlen(insn[k].op_str) > 0)
+                            {
+                                strcat(gadget_string, " ");
+                                strcat(gadget_string, insn[k].op_str);
+                            }
+                            strcat(gadget_string, " ; ");
                         }
-                        strcat(gadget_string, " ; ");
                         /* tree build */
                         tree_build(root, 0, insn, j+1);
                     }
-                    strcat(gadget_string, "ret");
-                    if(arg->print == 1)
+                    if(arg->print && strlen(gadget_string) + 3 < MaxGadgetLen)
                     {
+                        strcat(gadget_string, "ret");
                         /* print all gadgets */
                         printf("%d\t0x0%x:\t%s\n", j+1, text_address + i, gadget_string);
                     }
@@ -105,75 +109,181 @@ int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long bi
 
 int rop_chain_execve(struct Node *root, struct Gadget *head, struct Arg *arg)
 {
-    unsigned int result = 1;
-    size_t i = 0;
-    printf("\n--- Start chain *execve(\"/bin/sh\")* gadgets ---\n\n");
-    rop_chain_list_init(head);
-    result *= rop_search_gadgets(root, head, "pop edx;ret", 1, arg);
-    rop_chain_list_add(head, 0x080ef060, "@. data");
-    result *= rop_search_gadgets(root, head, "pop eax;ret", 1, arg);
-    rop_chain_list_add(head, 0x6e69622f, "/bin");
-    result *= rop_search_gadgets(root, head, "mov dword ptr [edx], eax;ret", 1, arg);
+    int result = 1;
+    struct Gadget *writeMEM;
 
-    result *= rop_search_gadgets(root, head, "pop edx;ret", 1, arg);
-    rop_chain_list_add(head, 0x080ef064, "@. data + 4");
-    result *= rop_search_gadgets(root, head, "pop eax;ret", 1, arg);
-    rop_chain_list_add(head, 0x68732f2f, "//sh");
-    result *= rop_search_gadgets(root, head, "mov dword ptr [edx], eax;ret", 1, arg);
-    
-    result *= rop_search_gadgets(root, head, "pop edx;ret", 1, arg);
-    rop_chain_list_add(head, 0x080ef068, "@. data + 8");
-    result *= rop_search_gadgets(root, head, "xor eax, eax;ret", 1, arg);
-    result *= rop_search_gadgets(root, head, "mov dword ptr [edx], eax;ret", 1, arg);
-
-    result *= rop_search_gadgets(root, head, "pop ebx;ret", 1, arg);
-    rop_chain_list_add(head, 0x080ef060, "@. data");
-    result *= rop_search_gadgets(root, head, "pop ecx;ret", 1, arg);
-    rop_chain_list_add(head, 0x080ef068, "@. data + 8");
-    result *= rop_search_gadgets(root, head, "pop edx;ret", 1, arg);
-    rop_chain_list_add(head, 0x080ef068, "@. data + 8");
-
-    result *= rop_search_gadgets(root, head, "xor eax, eax;ret", 1, arg);
-    for(i = 0; i < 11; i++)
+    result = rop_build_write_memory_gadget(root, &writeMEM, arg);
+    if(result == -1)
     {
-        if(rop_search_gadgets(root, head, "inc eax;ret", 1, arg) == 0)
-        {
-            result *= rop_search_gadgets(root, head, "inc eax;pop edi;ret", 1, arg);
-            rop_chain_list_add(head, 0x41414141, "padding");
-        }
-    }
-    result *= rop_search_gadgets(root, head, "int 0x80", 1, arg);
-    if(!result)
-    {
-        printf("chain execve failed\n");
+        rop_chain_list_free(writeMEM);
+        printf("Build WriteMEM Gadgets Failed\n");
         return -1;
     }
+    printf("\n--- Start chain *execve(\"/bin/sh\")* gadgets ---\n\n");
+    rop_chain_list_init(head);
+
+    rop_write_memory_gadget(head, writeMEM, 0x080ef060, 0x6e69622f);
+    rop_write_memory_gadget(head, writeMEM, 0x080ef064, 0x68732f2f);
+    rop_write_memory_gadget(head, writeMEM, 0x080ef068, 0);
+
+    rop_chain_list_free(writeMEM);
     return 0;
 }
 
-unsigned int rop_search_gadgets(struct Node *root, struct Gadget *head, char *gadget_string, int add_list, struct Arg *arg)
+int rop_write_memory_gadget(struct Gadget *head, struct Gadget *writeMEM, unsigned int dest, unsigned int value)
 {
-    char *token;
-    char copy_string[MaxGadgetLen];
-    strcpy(copy_string, gadget_string);
-    token = strtok(copy_string, ";");
-    while(token != NULL)
+    int i = 0;
+    struct Gadget *temp;
+    char string_value[4];
+    temp = writeMEM->next;
+    /* bypass xor gadget */
+    if(value == 0)
     {
-        root = tree_search(root, token, arg);
-        if(!root)
+        rop_chain_list_add(head, temp->address, temp->string, 1);
+    }
+    temp = temp->next;
+    for(; temp; temp = temp->next)
+    {
+        if(!strcmp(temp->string, "temp"))
         {
-            printf("can't find gadget *%s*\n", gadget_string);
-            return 0;
+            if(i == 0)
+            {
+                if(value != 0)
+                {
+                    memcpy(string_value, &value, 4);
+                    rop_chain_list_add(head, value, string_value, 1);
+                }
+                i++;
+            }
+            else
+            {
+                rop_chain_list_add(head, dest, "dest", 1);
+            }
         }
-        token = strtok(NULL, ";");
+        else
+        {
+            if(value != 0 || i != 0)
+            {
+                rop_chain_list_add(head, temp->address, temp->string, 1);
+            }
+        }
     }
-    if(add_list)
+    return 1;
+}
+int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, struct Arg *arg)
+{
+    struct Node *temp,*mov_temp;
+    char gadget_string[MaxGadgetLen] = "";
+    char regexp_string[MaxRegExpLen] = "";
+    char op[2][4];
+    int i, depth, restart;
+    printf("\n1. Build WriteMem Gadgets\n");
+    while(true)
     {
-        rop_chain_list_add(head, root->address, gadget_string);
-    }
-    else
-    {
-        printf("0x0%x: %s\n", root->address, gadget_string);
+        restart = 0;
+        *writeMEM = (struct Gadget *)malloc(sizeof(struct Gadget));
+        if(!*writeMEM)
+        {
+            fprintf(stderr ,"malloc failed.\n");
+            return -1;
+        }
+        rop_chain_list_init(*writeMEM);
+
+        /* find mov gadget */
+        memset(gadget_string, 0, MaxGadgetLen);
+        strcpy(regexp_string, "mov dword ptr .e[abcds][xip]], e[abcds][xip]");
+        for(depth = 1; depth < arg->depth; depth++)
+        {
+            mov_temp = tree_search(root, regexp_string, gadget_string, depth, arg);
+            if(mov_temp)
+            {
+                printf(" O: Find MOV Gadget \"%s\"\n", gadget_string);
+                break;
+            }
+            else if(depth == arg->depth-1)
+            {
+                printf(" X: Can't find gadget \"%s\"\n", regexp_string);
+                return -1;
+            }
+        }
+        strncpy(op[0], &gadget_string[15], 3);
+        strncpy(op[1], &gadget_string[21], 3);
+        op[0][3] = 0;
+        op[1][3] = 0;
+        if(!strcmp(op[0], "esp") || !strcmp(op[1], "esp"))
+        {
+            printf(" X: Can't use esp gadget. Try to find other mov gadget\n");
+            mov_temp->vaild = 0;
+            continue;
+        }
+        rop_chain_list_add(*writeMEM, mov_temp->address, gadget_string, 1);
+
+        /* find pop e_x gadget */
+        for(i = 0; i < 2; i++)
+        {
+            memset(gadget_string, 0, MaxGadgetLen);
+            strcpy(regexp_string, "^pop ___$");
+            strncpy(&regexp_string[5], op[i], 3);
+            for(depth = 1; depth < arg->depth; depth++)
+            {
+                temp = tree_search(root, regexp_string, gadget_string, depth, arg);
+                if(temp)
+                {
+                    printf(" O: Find POP Gadget \"%s\"\n", gadget_string);
+                    break;
+                }
+                else if(depth == arg->depth-1)
+                {
+                    printf(" X: Can't find gadget \"%s\" Try to find other mov gadget\n", regexp_string);
+                    mov_temp->vaild = 0;
+                    rop_chain_list_free(*writeMEM);
+                    restart = 1;
+                    break;
+                }
+            }
+            if(!restart)
+            {
+                rop_chain_list_add(*writeMEM, 0xffffffff, "temp", 0);
+                rop_chain_list_add(*writeMEM, temp->address, gadget_string, 0);
+            }
+            else
+            {
+                break;
+            }
+        }
+        if(restart)
+        {
+            continue;
+        }
+
+        /* find xor e_x gadget */
+        memset(gadget_string, 0, MaxGadgetLen);
+        strcpy(regexp_string, "^xor ___, ___");
+        strncpy(&regexp_string[5], op[1], 3);
+        strncpy(&regexp_string[10], op[1], 3);
+        for(depth = 1; depth < arg->depth; depth++)
+        {
+            temp = tree_search(root, regexp_string, gadget_string, depth, arg);
+            if(temp)
+            {
+                printf(" O: Find XOR Gadget \"%s\"\n", gadget_string);
+                break;
+            }
+            else if(depth == arg->depth-1)
+            {
+                printf(" X: Can't find gadget \"%s\" Try to find other mov gadget\n", regexp_string);
+                mov_temp->vaild = 0;
+                rop_chain_list_free(*writeMEM);
+                restart = 1;
+                break;
+            }
+        }
+        if(restart)
+        {
+            continue;
+        }
+        rop_chain_list_add(*writeMEM, temp->address, gadget_string, 0);
+        break;
     }
     return 1;
 }
@@ -184,7 +294,7 @@ void rop_chain_list_init(struct Gadget *head)
     head->prev = 0;
 }
 
-int rop_chain_list_add(struct Gadget *head, unsigned int address, char *string)
+int rop_chain_list_add(struct Gadget *head, unsigned int address, char *string, int tail)
 {
     struct Gadget *gadget;
     if(strlen(string) > MaxGadgetLen)
@@ -204,9 +314,18 @@ int rop_chain_list_add(struct Gadget *head, unsigned int address, char *string)
     strcpy(gadget->string, string);
     if(head->next)
     {
-        gadget->prev = head->prev;
-        head->prev->next = gadget;
-        head->prev = gadget;
+        if(tail == 1)
+        {
+            gadget->prev = head->prev;
+            head->prev->next = gadget;
+            head->prev = gadget;
+        }
+        else
+        {
+            gadget->next = head->next;
+            head->next->prev = gadget;
+            head->next = gadget;
+        }
     }
     else
     {
