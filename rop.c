@@ -58,10 +58,14 @@ int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long bi
             strcpy(gadget_string, "");
             for(j = 0; j < count; j++)
             {
-                if(!strcmp(insn[j].mnemonic, "ret") && j)
+                if(!strcmp(insn[0].mnemonic, "ret"))
+                {
+                    break;
+                }
+                else if(!strcmp(insn[j].mnemonic, "ret") && j)
                 {
                     total_gadget++;
-                    for (k = 0; k < j; k++)
+                    for(k = 0; k < j; k++)
                     {
                         if(arg->print && strlen(gadget_string)
                         + strlen(insn[k].mnemonic) + strlen(insn[k].op_str) + 7 < MaxGadgetLen)

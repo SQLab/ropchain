@@ -25,3 +25,5 @@
 *.hex
 
 ropchain
+test/
+.gdb_history
