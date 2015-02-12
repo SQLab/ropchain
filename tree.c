@@ -48,7 +48,7 @@ int tree_build(struct Node* root, unsigned int address, cs_insn *insn, size_t le
         }
         if(i == len-1)
         {
-            /* leaf */
+            /* ret leaf */
             node[i]->rightsibling = parent->leftchild;
             parent->leftchild = node[i];
             node[i]->address = insn[0].address;
@@ -69,6 +69,7 @@ int tree_build(struct Node* root, unsigned int address, cs_insn *insn, size_t le
                 head = parent->leftchild;
                 while(head)
                 {
+                    /* node already exist */
                     if(!strcmp(head->string,instruct_string))
                     {
                         parent = head;
