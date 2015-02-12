@@ -48,7 +48,7 @@ int tree_build(struct Node* root, unsigned int address, cs_insn *insn, size_t le
         }
         if(i == len-1)
         {
-            /* leaf */
+            /* ret leaf */
             node[i]->rightsibling = parent->leftchild;
             parent->leftchild = node[i];
             node[i]->address = insn[0].address;
@@ -69,6 +69,7 @@ int tree_build(struct Node* root, unsigned int address, cs_insn *insn, size_t le
                 head = parent->leftchild;
                 while(head)
                 {
+                    /* node already exist */
                     if(!strcmp(head->string,instruct_string))
                     {
                         parent = head;
@@ -114,8 +115,6 @@ struct Node *tree_search(struct Node* root, char* regexp_string, char* gadget_st
         /* Match and vaild */
         if(!reti && child->vaild)
         {
-            strcat(gadget_string, child->string);
-            strcat(gadget_string, "; ");
             /* leaf */
             if(child->address)
             {
@@ -135,6 +134,8 @@ struct Node *tree_search(struct Node* root, char* regexp_string, char* gadget_st
                     {
                         /* Free compiled regular expression */
                         regfree(&regex);
+                        strcat(gadget_string, child->string);
+                        strcat(gadget_string, "; ");
                         return child;
                     }
                 }
@@ -142,6 +143,8 @@ struct Node *tree_search(struct Node* root, char* regexp_string, char* gadget_st
             /* not leaf */
             else
             {
+                strcat(gadget_string, child->string);
+                strcat(gadget_string, "; ");
                 /* Free compiled regular expression */
                 if(depth == 1)
                 {
