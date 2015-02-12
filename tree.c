@@ -115,8 +115,6 @@ struct Node *tree_search(struct Node* root, char* regexp_string, char* gadget_st
         /* Match and vaild */
         if(!reti && child->vaild)
         {
-            strcat(gadget_string, child->string);
-            strcat(gadget_string, "; ");
             /* leaf */
             if(child->address)
             {
@@ -136,6 +134,8 @@ struct Node *tree_search(struct Node* root, char* regexp_string, char* gadget_st
                     {
                         /* Free compiled regular expression */
                         regfree(&regex);
+                        strcat(gadget_string, child->string);
+                        strcat(gadget_string, "; ");
                         return child;
                     }
                 }
@@ -143,6 +143,8 @@ struct Node *tree_search(struct Node* root, char* regexp_string, char* gadget_st
             /* not leaf */
             else
             {
+                strcat(gadget_string, child->string);
+                strcat(gadget_string, "; ");
                 /* Free compiled regular expression */
                 if(depth == 1)
                 {
