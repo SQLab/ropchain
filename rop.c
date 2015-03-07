@@ -117,12 +117,19 @@ int rop_chain_execve(struct Node *root, struct Gadget *head, struct Arg *arg)
 {
     int result = 1;
     struct Gadget *writeMEM;
-
+    struct Gadget *writeREG;
     result = rop_build_write_memory_gadget(root, &writeMEM, arg);
     if(result == -1)
     {
         rop_chain_list_free(writeMEM);
         printf("Build WriteMEM Gadgets Failed\n");
+        return -1;
+    }
+    result = rop_build_write_register_gadget(root, &writeREG, arg);
+    if(result == -1)
+    {
+        rop_chain_list_free(writeREG);
+        printf("Build WriteREG Gadgets Failed\n");
         return -1;
     }
     printf("\n--- Start chain *execve(\"/bin/sh\")* gadgets ---\n\n");
@@ -176,6 +183,7 @@ int rop_write_memory_gadget(struct Gadget *head, struct Gadget *writeMEM, unsign
     }
     return 1;
 }
+
 int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, struct Arg *arg)
 {
     struct Node *temp,*mov_temp;
@@ -290,6 +298,48 @@ int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, s
         }
         rop_chain_list_add(*writeMEM, temp->address, gadget_string, 0);
         break;
+    }
+    return 1;
+}
+
+int rop_build_write_register_gadget(struct Node *root, struct Gadget **writeREG, struct Arg *arg)
+{
+    struct Node *temp;
+    char gadget_string[MaxGadgetLen] = "";
+    char regexp_string[MaxRegExpLen] = "";
+    char *op[4] = {"eax", "ebx", "ecx", "edx"};
+    int i, depth;
+    printf("\n2. Build WriteREG Gadgets\n");
+    *writeREG = (struct Gadget *)malloc(sizeof(struct Gadget));
+    if(!*writeREG)
+    {
+        fprintf(stderr ,"malloc failed.\n");
+        return -1;
+    }
+    rop_chain_list_init(*writeREG);
+
+    /* find pop e_x gadget */
+    for(i = 0; i < 4; i++)
+    {
+        memset(gadget_string, 0, MaxGadgetLen);
+        strcpy(regexp_string, "^pop ___$");
+        strncpy(&regexp_string[5], op[i], 3);
+        for(depth = 1; depth < arg->depth; depth++)
+        {
+            temp = tree_search(root, regexp_string, gadget_string, depth, arg);
+            if(temp)
+            {
+                printf(" O: Find POP Gadget \"%s\"\n", gadget_string);
+                break;
+            }
+            else if(depth == arg->depth-1)
+            {
+                printf(" X: Can't find gadget \"%s\" Try to find other mov gadget\n", regexp_string);
+                rop_chain_list_free(*writeREG);
+                break;
+            }
+        }
+        rop_chain_list_add(*writeREG, temp->address, gadget_string, 1);
     }
     return 1;
 }
