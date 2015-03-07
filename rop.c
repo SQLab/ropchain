@@ -145,7 +145,6 @@ int rop_chain_execve(struct Node *root, struct Gadget *head, struct Arg *arg)
 
 int rop_write_memory_gadget(struct Gadget *head, struct Gadget *writeMEM, unsigned int dest, unsigned int value)
 {
-    int i = 0;
     struct Gadget *temp;
     char string_value[4];
     temp = writeMEM->next;
@@ -153,34 +152,22 @@ int rop_write_memory_gadget(struct Gadget *head, struct Gadget *writeMEM, unsign
     if(value == 0)
     {
         rop_chain_list_add(head, temp->address, temp->string, 1);
+        temp = temp->next;
     }
-    temp = temp->next;
-    for(; temp; temp = temp->next)
+    else
     {
-        if(!strcmp(temp->string, "temp"))
-        {
-            if(i == 0)
-            {
-                if(value != 0)
-                {
-                    memcpy(string_value, &value, 4);
-                    rop_chain_list_add(head, value, string_value, 1);
-                }
-                i++;
-            }
-            else
-            {
-                rop_chain_list_add(head, dest, "dest", 1);
-            }
-        }
-        else
-        {
-            if(value != 0 || i != 0)
-            {
-                rop_chain_list_add(head, temp->address, temp->string, 1);
-            }
-        }
+        temp = temp->next;
+        rop_chain_list_add(head, temp->address, temp->string, 1);
+        memcpy(string_value, &value, 4);
+        rop_chain_list_add(head, value, string_value, 1);
     }
+    /* write dest */
+    temp = temp->next;
+    rop_chain_list_add(head, temp->address, temp->string, 1);
+    rop_chain_list_add(head, dest, "dest", 1);
+    /* move value to dest */
+    temp = temp->next;
+    rop_chain_list_add(head, temp->address, temp->string, 1);
     return 1;
 }
 
@@ -257,7 +244,6 @@ int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, s
             }
             if(!restart)
             {
-                rop_chain_list_add(*writeMEM, 0xffffffff, "temp", 0);
                 rop_chain_list_add(*writeMEM, temp->address, gadget_string, 0);
             }
             else
