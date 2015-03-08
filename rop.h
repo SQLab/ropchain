@@ -27,6 +27,8 @@ int rop_build_write_register_gadget(struct Node *root, struct Gadget **writeREG,
 int rop_write_register_gadget(struct Gadget *head, struct Gadget *writeREG, char *dest, unsigned int value);
 int rop_build_arith_register_gadget(struct Node *root, struct Gadget **arithREG, struct Arg *arg);
 int rop_arith_register_gadget(struct Gadget *head, struct Gadget *arithREG, char *dest, unsigned int value);
+int rop_build_interrupt_gadget(struct Node *root, struct Gadget **INT, struct Arg *arg);
+int rop_interrupt_gadget(struct Gadget *head, struct Gadget *INT);
 
 void rop_chain_list_init(struct Gadget *head);
 int rop_chain_list_add(struct Gadget *head, unsigned int address, char *string, int tail);
