@@ -151,6 +151,8 @@ int rop_chain_execve(struct Node *root, struct Gadget *head, struct Arg *arg)
     rop_write_register_gadget(head, writeREG, "ecx", 0x080ef068);
     rop_write_register_gadget(head, writeREG, "edx", 0x080ef068);
     rop_chain_list_free(writeMEM);
+    rop_chain_list_free(writeREG);
+    rop_chain_list_free(arithREG);
     return 0;
 }
 
@@ -352,7 +354,6 @@ int rop_build_write_register_gadget(struct Node *root, struct Gadget **writeREG,
             else if(depth == arg->depth-1)
             {
                 printf(" X: Can't find gadget \"%s\"\n", regexp_string);
-                rop_chain_list_free(*writeREG);
                 return -1;
             }
         }
@@ -415,7 +416,6 @@ int rop_build_arith_register_gadget(struct Node *root, struct Gadget **arithREG,
             else if(depth == arg->depth-1)
             {
                 printf(" X: Can't find gadget \"%s\"\n", regexp_string);
-                rop_chain_list_free(*arithREG);
                 return -1;
             }
         }
