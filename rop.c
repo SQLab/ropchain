@@ -150,6 +150,9 @@ int rop_chain_execve(struct Node *root, struct Gadget *head, struct Arg *arg)
     rop_write_register_gadget(head, writeREG, "ebx", 0x080ef060);
     rop_write_register_gadget(head, writeREG, "ecx", 0x080ef068);
     rop_write_register_gadget(head, writeREG, "edx", 0x080ef068);
+
+    rop_arith_register_gadget(head, arithREG, "eax", 11);
+
     rop_chain_list_free(writeMEM);
     rop_chain_list_free(writeREG);
     rop_chain_list_free(arithREG);
@@ -204,6 +207,24 @@ int rop_write_register_gadget(struct Gadget *head, struct Gadget *writeREG, char
     rop_chain_list_add(head, value, "value", 1);
     return 1;
 }
+
+int rop_arith_register_gadget(struct Gadget *head, struct Gadget *arithREG, char *dest, unsigned int value)
+{
+    struct Gadget *temp;
+    unsigned int i;
+    temp = arithREG->next;
+    if(!strcmp(dest, "eax"))
+    {
+        rop_chain_list_add(head, temp->address, temp->string, 1);
+        temp = temp->next;
+        for(i = 0; i < value; i++)
+        {
+            rop_chain_list_add(head, temp->address, temp->string, 1);
+        }
+    }
+    return 1;
+}
+
 int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, struct Arg *arg)
 {
     struct Node *temp,*mov_temp;
