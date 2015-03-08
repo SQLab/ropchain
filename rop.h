@@ -23,6 +23,12 @@ int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long bi
 int rop_chain_execve(struct Node *root, struct Gadget *head,struct Arg *arg);
 int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, struct Arg *arg);
 int rop_write_memory_gadget(struct Gadget *head, struct Gadget *writeMEM, unsigned int dest, unsigned int value);
+int rop_build_write_register_gadget(struct Node *root, struct Gadget **writeREG, struct Arg *arg);
+int rop_write_register_gadget(struct Gadget *head, struct Gadget *writeREG, char *dest, unsigned int value);
+int rop_build_arith_register_gadget(struct Node *root, struct Gadget **arithREG, struct Arg *arg);
+int rop_arith_register_gadget(struct Gadget *head, struct Gadget *arithREG, char *dest, unsigned int value);
+int rop_build_interrupt_gadget(struct Node *root, struct Gadget **INT, struct Arg *arg);
+int rop_interrupt_gadget(struct Gadget *head, struct Gadget *INT);
 
 void rop_chain_list_init(struct Gadget *head);
 int rop_chain_list_add(struct Gadget *head, unsigned int address, char *string, int tail);
