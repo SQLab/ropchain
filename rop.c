@@ -261,10 +261,10 @@ int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, s
         rop_chain_list_init(*writeMEM);
 
         /* find mov gadget */
-        memset(gadget_string, 0, MaxGadgetLen);
         strcpy(regexp_string, "mov dword ptr .e[abcds][xip]], e[abcds][xip]");
         for(depth = 1; depth < arg->depth; depth++)
         {
+            memset(gadget_string, 0, MaxGadgetLen);
             mov_temp = tree_search(root, regexp_string, gadget_string, depth, arg);
             if(mov_temp)
             {
@@ -292,11 +292,11 @@ int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, s
         /* find pop e_x gadget */
         for(i = 0; i < 2; i++)
         {
-            memset(gadget_string, 0, MaxGadgetLen);
             strcpy(regexp_string, "^pop ___$");
             strncpy(&regexp_string[5], op[i], 3);
             for(depth = 1; depth < arg->depth; depth++)
             {
+                memset(gadget_string, 0, MaxGadgetLen);
                 temp = tree_search(root, regexp_string, gadget_string, depth, arg);
                 if(temp)
                 {
@@ -327,12 +327,12 @@ int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, s
         }
 
         /* find xor e_x gadget */
-        memset(gadget_string, 0, MaxGadgetLen);
         strcpy(regexp_string, "^xor ___, ___");
         strncpy(&regexp_string[5], op[1], 3);
         strncpy(&regexp_string[10], op[1], 3);
         for(depth = 1; depth < arg->depth; depth++)
         {
+            memset(gadget_string, 0, MaxGadgetLen);
             temp = tree_search(root, regexp_string, gadget_string, depth, arg);
             if(temp)
             {
@@ -377,11 +377,11 @@ int rop_build_write_register_gadget(struct Node *root, struct Gadget **writeREG,
     /* find pop e_x gadget */
     for(i = 0; i < 4; i++)
     {
-        memset(gadget_string, 0, MaxGadgetLen);
         strcpy(regexp_string, "^pop ___$");
         strncpy(&regexp_string[5], op[i], 3);
         for(depth = 1; depth < arg->depth; depth++)
         {
+            memset(gadget_string, 0, MaxGadgetLen);
             temp = tree_search(root, regexp_string, gadget_string, depth, arg);
             if(temp)
             {
@@ -418,12 +418,12 @@ int rop_build_arith_register_gadget(struct Node *root, struct Gadget **arithREG,
     for(i = 0; i < 1; i++)
     {
         /* Find xor gadget */
-        memset(gadget_string, 0, MaxGadgetLen);
         strcpy(regexp_string, "^xor ___, ___");
         strncpy(&regexp_string[5], op[i], 3);
         strncpy(&regexp_string[10], op[i], 3);
         for(depth = 1; depth < arg->depth; depth++)
         {
+            memset(gadget_string, 0, MaxGadgetLen);
             temp = tree_search(root, regexp_string, gadget_string, depth, arg);
             if(temp)
             {
@@ -439,11 +439,11 @@ int rop_build_arith_register_gadget(struct Node *root, struct Gadget **arithREG,
         }
         rop_chain_list_add(*arithREG, temp->address, gadget_string, 1);
         /* Find inc gadget */
-        memset(gadget_string, 0, MaxGadgetLen);
         strcpy(regexp_string, "^inc ___$");
         strncpy(&regexp_string[5], op[i], 3);
         for(depth = 1; depth < arg->depth; depth++)
         {
+            memset(gadget_string, 0, MaxGadgetLen);
             temp = tree_search(root, regexp_string, gadget_string, depth, arg);
             if(temp)
             {

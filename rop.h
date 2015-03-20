@@ -7,9 +7,8 @@
 #include <string.h>
 #include <capstone/capstone.h>
 #include "tree.h"
-#define MaxGadgetLen 200
 #define MaxRegExpLen 100
-#define MaxGadgetByte 9
+#define MaxGadgetByte 20
 
 struct Gadget{
     char string[MaxGadgetLen];
