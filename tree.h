@@ -2,7 +2,7 @@
 #define _tree_h
 
 #define MaxInstructLen 100
-#define MaxGadgetLen 200
+#define MaxGadgetLen 1000
 #include <stdio.h>
 #include <inttypes.h>
 #include <stdlib.h>

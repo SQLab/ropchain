@@ -95,10 +95,11 @@ struct Node *tree_search(struct Node* root, char* regexp_string, char* gadget_st
 {
     struct Node* child,* temp;
     unsigned char *address;
-    size_t i, j;
+    int i, j;
     regex_t regex;
     int reti;
     char msgbuf[100];
+    int gadget_len;
 
     /* Compile regular expression */
     reti = regcomp(&regex, regexp_string, 0);
@@ -184,7 +185,20 @@ struct Node *tree_search(struct Node* root, char* regexp_string, char* gadget_st
     }
     /* Free compiled regular expression */
     regfree(&regex);
-    memset(gadget_string, 0, MaxGadgetLen);
+    gadget_len = strlen(gadget_string);
+    /* Clear gadget_string */
+    for(i = gadget_len-3; i > -1; i--)
+    {
+        if(gadget_string[i] == ';')
+        {
+            memset(gadget_string + i + 2, 0 , MaxGadgetLen - i - 2);
+            break;
+        }
+    }
+    if(i < 0)
+    {
+        memset(gadget_string, 0 , MaxGadgetLen);
+    }
     return 0;
 }
 
