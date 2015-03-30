@@ -63,7 +63,7 @@ int main(int argc, char** argv)
     }
     parse_arg(argc, argv, arg);
 
-    chain_len = rop_chain(&chain, binary, binary_len, arg);
+    chain_len = rop_chain(&chain, binary, arg);
     if(chain_len > 0)
     {
         printf("\n--- Result ---\n");

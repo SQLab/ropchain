@@ -7,6 +7,7 @@
 #include <string.h>
 #include <capstone/capstone.h>
 #include "tree.h"
+#include "elf.h"
 #define MaxRegExpLen 100
 #define MaxGadgetByte 20
 
@@ -17,8 +18,8 @@ struct Gadget{
     struct Gadget *prev;
 };
 
-int rop_chain(unsigned char **chain, unsigned char *binary, unsigned long binary_len, struct Arg *arg);
-int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long binary_len, struct Arg *arg);
+int rop_chain(unsigned char **chain, unsigned char *binary, struct Arg *arg);
+int rop_parse_gadgets(struct Node *root, unsigned char *binary, struct Segment *text,struct Arg *arg);
 int rop_chain_execve(struct Node *root, struct Gadget *head,struct Arg *arg);
 int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, struct Arg *arg);
 int rop_write_memory_gadget(struct Gadget *head, struct Gadget *writeMEM, unsigned int dest, unsigned int value);
