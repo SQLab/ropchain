@@ -1,9 +1,16 @@
 #include "rop.h"
 
-int rop_chain(unsigned char **chain, unsigned char *binary, unsigned long binary_len, struct Arg *arg)
+int rop_chain(unsigned char **chain, unsigned char *binary, struct Arg *arg)
 {
     struct Node *root;
+    struct Segment *text;
     int result;
+    text = elf_parse(binary);
+    if(!text)
+    {
+        fprintf(stderr ,"parse elf failed.\n");
+        return -1;
+    }
     root = (struct Node *)malloc(sizeof(struct Node));
     if(!root)
     {
@@ -23,7 +30,7 @@ int rop_chain(unsigned char **chain, unsigned char *binary, unsigned long binary
         fprintf(stderr ,"malloc failed.\n");
         return -1;
     }
-    rop_parse_gadgets(root, binary, binary_len, arg);
+    rop_parse_gadgets(root, binary, text, arg);
     result = rop_chain_execve(root, head, arg);
     if(!result)
     {
@@ -34,13 +41,12 @@ int rop_chain(unsigned char **chain, unsigned char *binary, unsigned long binary
     return result;
 }
 
-int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long binary_len, struct Arg *arg)
+int rop_parse_gadgets(struct Node *root, unsigned char *binary, struct Segment *text, struct Arg *arg)
 {
     size_t count;
     csh handle;
     cs_insn *insn;
     char gadget_string[MaxGadgetLen];
-    unsigned int text_address = 0x08048000;
     int total_gadget = 0;
     size_t i,j,k;
 
@@ -50,9 +56,9 @@ int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long bi
     {
         return -1;
     }
-    for(i = 0; i < binary_len - MaxGadgetByte; i++)
+    for(i = 0; i < text->memsz - MaxGadgetByte; i++)
     {
-        count = cs_disasm_ex(handle, binary + i, MaxGadgetByte, text_address + i, 0, &insn);
+        count = cs_disasm_ex(handle, binary + i, MaxGadgetByte, text->vaddr + i, 0, &insn);
         if(count > 0)
         {
             strcpy(gadget_string, "");
@@ -87,7 +93,7 @@ int rop_parse_gadgets(struct Node *root, unsigned char *binary, unsigned long bi
                     {
                         strcat(gadget_string, "ret");
                         /* print all gadgets */
-                        printf("%d\t0x0%x:\t%s\n", j+1, text_address + i, gadget_string);
+                        printf("%d\t0x0%x:\t%s\n", j+1, text->vaddr + i, gadget_string);
                     }
                     strcpy(gadget_string, "");
                     break;
