@@ -69,6 +69,12 @@ int rop_parse_gadgets(struct Node *root, unsigned char *binary, struct Segment *
                 {
                     break;
                 }
+                /* Drop jump/call gadgets */
+                else if(strchr(insn[j].mnemonic, 'j') || strstr(insn[j].mnemonic, "call"))
+                {
+                    i += j;
+                    break;
+                }
                 /* Ret-type gadgets */
                 else if(!strcmp(insn[j].mnemonic, "ret") && j)
                 {
