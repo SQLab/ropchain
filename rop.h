@@ -13,6 +13,14 @@
 
 struct Gadget{
     char string[MaxGadgetLen];
+    char target_write[4];
+    char total_target_write[20][4];
+    char gadget_write[20][4];
+    char pre_write[20][4];
+    int total_target_write_no;
+    int gadget_write_no;
+    int pre_write_no;
+    int padding;
     unsigned int address;
     struct Gadget *next;
     struct Gadget *prev;
@@ -29,6 +37,9 @@ int rop_build_arith_register_gadget(struct Node *root, struct Gadget **arithREG,
 int rop_arith_register_gadget(struct Gadget *head, struct Gadget *arithREG, char *dest, unsigned int value);
 int rop_build_interrupt_gadget(struct Node *root, struct Gadget **INT, struct Arg *arg);
 int rop_interrupt_gadget(struct Gadget *head, struct Gadget *INT);
+
+void rop_gadget_info_update(struct Gadget *gadget);
+void rop_parse_instruction(char *instr, struct Gadget *gadget);
 
 void rop_chain_list_init(struct Gadget *head);
 int rop_chain_list_add(struct Gadget *head, unsigned int address, char *string, int tail);

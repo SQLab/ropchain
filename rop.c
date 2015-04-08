@@ -502,10 +502,123 @@ int rop_build_interrupt_gadget(struct Node *root, struct Gadget **INT, struct Ar
     }
 }
 
+void rop_gadget_info_update(struct Gadget *gadget)
+{
+    int i;
+    char *instr, *end_instr;
+    char string[MaxGadgetLen];
+    gadget->padding = 0;
+    gadget->gadget_write_no = 0;
+    strcpy(gadget->target_write, "nul");
+    if(strchr(gadget->string, ';'))
+    {
+        strcpy(string, gadget->string);
+        string[strlen(string) - 1] = '\x00';
+        instr = strtok_r(string, ";", &end_instr);
+        if(instr != NULL)
+        {
+            rop_parse_instruction(instr, gadget);
+        }
+    }
+    while(instr != NULL)
+    {
+        instr = strtok_r(NULL, ";", &end_instr);
+        if(instr != NULL)
+        {
+            instr++;
+            rop_parse_instruction(instr, gadget);
+        }
+    }
+    for(i = 0; i < gadget->gadget_write_no; i++)
+    {
+        if(!strcmp(gadget->gadget_write[i], gadget->target_write))
+        {
+            //printf("GG\n");
+        }
+    }
+}
+
+void rop_parse_instruction(char *instr, struct Gadget *gadget)
+{
+    char *operation = NULL;
+    char *dst_operand = NULL;
+    char *src_operand = NULL;
+    char *end_str;
+    char *reg;
+    char string[MaxGadgetLen];
+    strcpy(string, instr);
+    operation = string;
+    /* parse operand */
+    if(strchr(string, ','))
+    {
+        dst_operand = strtok_r(string, ",", &end_str);
+        src_operand = strtok_r(NULL, ",", &end_str) + 1;
+    }
+    dst_operand = strstr(string, " ");
+    if(dst_operand)
+    {
+        *dst_operand = '\x00';
+        dst_operand++;
+    }
+    else
+    {
+        return;
+    }
+    if(gadget->gadget_write_no == 0)
+    {
+        reg = gadget->target_write;
+        gadget->gadget_write_no++;
+    }
+    else
+    {
+        reg = gadget->gadget_write[gadget->gadget_write_no++];
+        if(!strcmp(operation, "pop"))
+        {
+            gadget->padding += 4;
+        }
+    }
+    memset(reg, 0, 4);
+    if(strchr(dst_operand, '['))
+    {
+        strcpy(reg, "nul");
+    }
+    else if(strstr(dst_operand, "eax"))
+    {
+        strcpy(reg, "eax");
+    }
+    else if(strstr(dst_operand, "ebx"))
+    {
+        strcpy(reg, "ebx");
+    }
+    else if(strstr(dst_operand, "ecx"))
+    {
+        strcpy(reg, "ecx");
+    }
+    else if(strstr(dst_operand, "edx"))
+    {
+        strcpy(reg, "edx");
+    }
+    else if(strstr(dst_operand, "esp"))
+    {
+        strcpy(reg, "esp");
+    }
+    else if(strstr(dst_operand, "ebp"))
+    {
+        strcpy(reg, "ebp");
+    }
+    else
+    {
+        strcpy(reg, "nul");
+    }
+}
+
 void rop_chain_list_init(struct Gadget *head)
 {
     head->next = 0;
     head->prev = 0;
+    head->total_target_write_no = 0;
+    head->gadget_write_no = 0;
+    head->pre_write_no = 0;
 }
 
 int rop_chain_list_add(struct Gadget *head, unsigned int address, char *string, int tail)
@@ -526,6 +639,8 @@ int rop_chain_list_add(struct Gadget *head, unsigned int address, char *string, 
     gadget->address = address;
     gadget->next = NULL;
     strcpy(gadget->string, string);
+    strcpy(gadget->target_write, "nul");
+    rop_gadget_info_update(gadget);
     if(head->next)
     {
         if(tail == 1)
