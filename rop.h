@@ -38,7 +38,7 @@ int rop_arith_register_gadget(struct Gadget *head, struct Gadget *arithREG, char
 int rop_build_interrupt_gadget(struct Node *root, struct Gadget **INT, struct Arg *arg);
 int rop_interrupt_gadget(struct Gadget *head, struct Gadget *INT);
 
-void rop_gadget_info_update(struct Gadget *gadget);
+int rop_gadget_info_update(struct Gadget *gadget);
 void rop_parse_instruction(char *instr, struct Gadget *gadget);
 
 void rop_chain_list_init(struct Gadget *head);
