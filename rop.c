@@ -167,9 +167,10 @@ int rop_chain_execve(struct Node *root, struct Gadget *head, struct Arg *arg)
     rop_write_memory_gadget(head, writeMEM, 0x080efff4, 0x68732f2f);
     rop_write_memory_gadget(head, writeMEM, 0x080efff8, 0);
 
-    rop_write_register_gadget(head, writeREG, "ebx", 0x080efff0);
-    rop_write_register_gadget(head, writeREG, "ecx", 0x080efff8);
-    rop_write_register_gadget(head, writeREG, "edx", 0x080efff8);
+    rop_write_register_gadget(writeREG, "ebx", 0x080efff0);
+    rop_write_register_gadget(writeREG, "ecx", 0x080efff8);
+    rop_write_register_gadget(writeREG, "edx", 0x080efff8);
+    rop_chain_write_register_gadget(head, writeREG);
 
     rop_arith_register_gadget(head, arithREG, "eax", 11);
     rop_interrupt_gadget(head, INT);
@@ -178,6 +179,92 @@ int rop_chain_execve(struct Node *root, struct Gadget *head, struct Arg *arg)
     rop_chain_list_free(writeREG);
     rop_chain_list_free(arithREG);
     rop_chain_list_free(INT);
+    return 0;
+}
+
+int rop_chain_write_register_gadget(struct Gadget *head, struct Gadget *writeREG)
+{
+    int i, j, k;
+    struct Gadget *temp = writeREG;
+    char part_target_write[20][10];
+    int part_target_write_no = 0;
+    int gw_ttw, gw_ptw;
+    /* find last one and ptw */
+    for(i = 0; i < writeREG->total_target_write_no; i++)
+    {
+        temp = temp->next->next;
+        while(temp->address == 0)
+        {
+            temp->prev->order = -1;
+            temp = temp->next->next;
+        }
+        temp = temp->prev;
+        gw_ttw = 0;
+        for(j = 1; j < temp->gadget_write_no; j++)
+        {
+            for(k = 0; k < writeREG->total_target_write_no; k++)
+            {
+                if(!strcmp(temp->gadget_write[j], writeREG->total_target_write[k]))
+                {
+                    gw_ttw++;
+                }
+            }
+        }
+        if(gw_ttw == 0)
+        {
+            temp->order = 20;
+        }
+        else
+        {
+            temp->order = -1;
+            strcpy(part_target_write[part_target_write_no++], temp->target_write);
+        }
+        temp = temp->next;
+    }
+    /* sort ptw order */
+    temp = writeREG;
+    for(i = 0; i < part_target_write_no; i++)
+    {
+        temp = temp->next->next;
+        while(temp->address == 0 || temp->prev->order == 20)
+        {
+            temp = temp->next->next;
+        }
+        temp = temp->prev;
+        gw_ptw = 0;
+        for(j = 1; j < temp->gadget_write_no; j++)
+        {
+            for(k = 0; k < part_target_write_no; k++)
+            {
+                if(!strcmp(temp->gadget_write[j], part_target_write[k]))
+                {
+                    gw_ptw++;
+                }
+            }
+        }
+        temp->order = 19 - gw_ptw;
+        temp = temp->next;
+    }
+    /* Add to list */
+    for(i = 0; i <= 20; i++)
+    {
+        temp = writeREG;
+        for(j = 0; j < writeREG->total_target_write_no; j++)
+        {
+            temp = temp->next->next;
+            while(temp->address == 0)
+            {
+                temp = temp->next->next;
+            }
+            temp = temp->prev;
+            if(temp->order == i)
+            {
+                rop_chain_list_add(head, temp->address, temp->string, 1);
+                rop_chain_list_add(head, temp->next->address, temp->next->string, 1);
+            }
+            temp = temp->next;
+        }
+    }
     return 0;
 }
 
@@ -209,24 +296,28 @@ int rop_write_memory_gadget(struct Gadget *head, struct Gadget *writeMEM, unsign
     return 1;
 }
 
-int rop_write_register_gadget(struct Gadget *head, struct Gadget *writeREG, char *dest, unsigned int value)
+int rop_write_register_gadget(struct Gadget *writeREG, char *dest, unsigned int value)
 {
     struct Gadget *temp;
     temp = writeREG->next;
     if(!strcmp(dest, "ebx"))
     {
         temp = temp->next;
+        temp = temp->next;
     }
     else if(!strcmp(dest, "ecx"))
     {
+        temp = temp->next->next;
         temp = temp->next->next;
     }
     else if(!strcmp(dest, "edx"))
     {
         temp = temp->next->next->next;
+        temp = temp->next->next->next;
     }
-    rop_chain_list_add(head, temp->address, temp->string, 1);
-    rop_chain_list_add(head, value, "value", 1);
+    temp = temp->next;
+    temp->address = value;
+    strcpy(writeREG->total_target_write[writeREG->total_target_write_no++], dest);
     return 1;
 }
 
@@ -433,6 +524,7 @@ int rop_build_write_register_gadget(struct Node *root, struct Gadget **writeREG,
             i--;
             continue;
         }
+        valid = rop_chain_list_add(*writeREG, 0x00000000, "value", 1);
     }
     return 1;
 }
@@ -575,7 +667,7 @@ int rop_gadget_info_update(struct Gadget *gadget)
             rop_parse_instruction(instr, gadget);
         }
     }
-    for(i = 0; i < gadget->gadget_write_no; i++)
+    for(i = 1; i < gadget->gadget_write_no; i++)
     {
         if(!strcmp(gadget->gadget_write[i], gadget->target_write) &&
         strcmp(gadget->target_write, "nul"))
@@ -667,7 +759,6 @@ void rop_chain_list_init(struct Gadget *head)
     head->prev = 0;
     head->total_target_write_no = 0;
     head->gadget_write_no = 0;
-    head->pre_write_no = 0;
 }
 
 int rop_chain_list_add(struct Gadget *head, unsigned int address, char *string, int tail)
