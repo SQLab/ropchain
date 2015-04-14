@@ -187,6 +187,7 @@ int rop_chain_write_register_gadget(struct Gadget *head, struct Gadget *writeREG
     int i, j, k;
     struct Gadget *temp = writeREG;
     char part_target_write[20][10];
+    char string_padding[20];
     int part_target_write_no = 0;
     int gw_ttw, gw_ptw;
     /* find last one and ptw */
@@ -261,6 +262,11 @@ int rop_chain_write_register_gadget(struct Gadget *head, struct Gadget *writeREG
             {
                 rop_chain_list_add(head, temp->address, temp->string, 1);
                 rop_chain_list_add(head, temp->next->address, temp->next->string, 1);
+                if(temp->padding > 0)
+                {
+                    sprintf(string_padding, "padding*%d", temp->padding);
+                    rop_chain_list_add(head, 0x41414141, string_padding, 1);
+                }
             }
             temp = temp->next;
         }
@@ -272,11 +278,17 @@ int rop_write_memory_gadget(struct Gadget *head, struct Gadget *writeMEM, unsign
 {
     struct Gadget *temp;
     char string_value[4];
+    char string_padding[20];
     temp = writeMEM->next;
     /* bypass xor gadget */
     if(value == 0)
     {
         rop_chain_list_add(head, temp->address, temp->string, 1);
+        if(temp->padding > 0)
+        {
+            sprintf(string_padding, "padding*%d", temp->padding);
+            rop_chain_list_add(head, 0x41414141, string_padding, 1);
+        }
         temp = temp->next;
     }
     else
@@ -285,14 +297,29 @@ int rop_write_memory_gadget(struct Gadget *head, struct Gadget *writeMEM, unsign
         rop_chain_list_add(head, temp->address, temp->string, 1);
         memcpy(string_value, &value, 4);
         rop_chain_list_add(head, value, string_value, 1);
+        if(temp->padding > 0)
+        {
+            sprintf(string_padding, "padding*%d", temp->padding);
+            rop_chain_list_add(head, 0x41414141, string_padding, 1);
+        }
     }
     /* write dest */
     temp = temp->next;
     rop_chain_list_add(head, temp->address, temp->string, 1);
     rop_chain_list_add(head, dest, "dest", 1);
+    if(temp->padding > 0)
+    {
+        sprintf(string_padding, "padding*%d", temp->padding);
+        rop_chain_list_add(head, 0x41414141, string_padding, 1);
+    }
     /* move value to dest */
     temp = temp->next;
     rop_chain_list_add(head, temp->address, temp->string, 1);
+    if(temp->padding > 0)
+    {
+        sprintf(string_padding, "padding*%d", temp->padding);
+        rop_chain_list_add(head, 0x41414141, string_padding, 1);
+    }
     return 1;
 }
 
@@ -325,14 +352,25 @@ int rop_arith_register_gadget(struct Gadget *head, struct Gadget *arithREG, char
 {
     struct Gadget *temp;
     unsigned int i;
+    char string_padding[20];
     temp = arithREG->next;
     if(!strcmp(dest, "eax"))
     {
         rop_chain_list_add(head, temp->address, temp->string, 1);
+        if(temp->padding > 0)
+        {
+            sprintf(string_padding, "padding*%d", temp->padding);
+            rop_chain_list_add(head, 0x41414141, string_padding, 1);
+        }
         temp = temp->next;
         for(i = 0; i < value; i++)
         {
             rop_chain_list_add(head, temp->address, temp->string, 1);
+            if(temp->padding > 0)
+            {
+                sprintf(string_padding, "padding*%d", temp->padding);
+                rop_chain_list_add(head, 0x41414141, string_padding, 1);
+            }
         }
     }
     return 1;
@@ -567,7 +605,6 @@ int rop_build_arith_register_gadget(struct Node *root, struct Gadget **arithREG,
                 else if(depth == arg->depth-1)
                 {
                     printf(" X: Can't find gadget \"%s\"\n", regexp_string);
-                    rop_chain_list_free(*arithREG);
                     return -1;
                 }
             }
@@ -687,6 +724,7 @@ void rop_parse_instruction(char *instr, struct Gadget *gadget)
     char *end_str;
     char *reg;
     char string[MaxGadgetLen];
+    long padding;
     strcpy(string, instr);
     operation = string;
     /* parse operand */
@@ -742,6 +780,15 @@ void rop_parse_instruction(char *instr, struct Gadget *gadget)
     else if(strstr(dst_operand, "esp"))
     {
         strcpy(reg, "esp");
+        if(!strcmp(operation, "inc"))
+        {
+            gadget->padding += 1;
+        }
+        else if(!strcmp(operation, "add"))
+        {
+            padding = strtol(src_operand, &end_str, 16);
+            gadget->padding += (int)padding;
+        }
     }
     else if(strstr(dst_operand, "ebp"))
     {
@@ -813,21 +860,41 @@ int rop_chain_list_traverse(struct Gadget *head, unsigned char **chain)
 {
     struct Gadget *temp;
     unsigned char *rechain;
+    int padding;
+    int chain_len = 0;
     size_t i = 0;
     for(temp = head->next; temp; temp = temp->next)
     {
         i++;
-        printf("0x%08x: %s\n", temp->address, temp->string);
-        rechain = (unsigned char*)realloc(*chain, i * 4 * sizeof(unsigned char));
-        if(!rechain)
+        if(strstr(temp->string, "padding"))
         {
-            fprintf(stderr ,"realloc failed.\n");
-            exit(-1);
+            printf("0x%08x: %s\n", temp->address, temp->string);
+            padding = atoi(temp->string + 8);
+            chain_len += padding;
+            rechain = (unsigned char*)realloc(*chain, chain_len);
+            if(!rechain)
+            {
+                fprintf(stderr ,"realloc failed.\n");
+                exit(-1);
+            }
+            *chain = rechain;
+            memset(*chain + chain_len - padding, 0x41, padding);
         }
-        *chain = rechain;
-        memcpy(*chain + (i-1) * 4, &temp->address, 4);
+        else
+        {
+            printf("0x%08x: %s\n", temp->address, temp->string);
+            chain_len += 4 * sizeof(unsigned char);
+            rechain = (unsigned char*)realloc(*chain, chain_len);
+            if(!rechain)
+            {
+                fprintf(stderr ,"realloc failed.\n");
+                exit(-1);
+            }
+            *chain = rechain;
+            memcpy(*chain + chain_len - 4, &temp->address, 4);
+        }
     }
-    return i * 4;
+    return chain_len;
 }
 
 void rop_chain_list_free(struct Gadget *head)
