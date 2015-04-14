@@ -13,6 +13,13 @@
 
 struct Gadget{
     char string[MaxGadgetLen];
+    char target_write[4];
+    char total_target_write[20][4];
+    char gadget_write[20][4];
+    int total_target_write_no;
+    int gadget_write_no;
+    int padding;
+    int order;
     unsigned int address;
     struct Gadget *next;
     struct Gadget *prev;
@@ -24,11 +31,15 @@ int rop_chain_execve(struct Node *root, struct Gadget *head,struct Arg *arg);
 int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, struct Arg *arg);
 int rop_write_memory_gadget(struct Gadget *head, struct Gadget *writeMEM, unsigned int dest, unsigned int value);
 int rop_build_write_register_gadget(struct Node *root, struct Gadget **writeREG, struct Arg *arg);
-int rop_write_register_gadget(struct Gadget *head, struct Gadget *writeREG, char *dest, unsigned int value);
+int rop_write_register_gadget(struct Gadget *writeREG, char *dest, unsigned int value);
+int rop_chain_write_register_gadget(struct Gadget *head, struct Gadget *writeREG);
 int rop_build_arith_register_gadget(struct Node *root, struct Gadget **arithREG, struct Arg *arg);
 int rop_arith_register_gadget(struct Gadget *head, struct Gadget *arithREG, char *dest, unsigned int value);
 int rop_build_interrupt_gadget(struct Node *root, struct Gadget **INT, struct Arg *arg);
 int rop_interrupt_gadget(struct Gadget *head, struct Gadget *INT);
+
+int rop_gadget_info_update(struct Gadget *gadget);
+void rop_parse_instruction(char *instr, struct Gadget *gadget);
 
 void rop_chain_list_init(struct Gadget *head);
 int rop_chain_list_add(struct Gadget *head, unsigned int address, char *string, int tail);
