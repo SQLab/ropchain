@@ -39,6 +39,9 @@ int rop_build_write_register_gadget(struct Node *root, struct Gadget **writeREG,
 int rop_write_register_gadget(struct Gadget *writeREG, char *dest, unsigned int value);
 int rop_chain_write_register_gadget(struct Gadget *head, struct Gadget *writeREG);
 
+int rop_build_zero_register_gadget(struct Node *root, struct Gadget **zeroREG, struct Arg *arg);
+int rop_zero_register_gadget(struct Gadget *head, struct Gadget *zeroREG, char *dest);
+
 int rop_build_arith_register_gadget(struct Node *root, struct Gadget **arithREG, struct Arg *arg);
 int rop_arith_register_gadget(struct Gadget *head, struct Gadget *arithREG, char *dest, unsigned int value);
 
