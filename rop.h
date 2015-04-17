@@ -11,7 +11,8 @@
 #define MaxRegExpLen 100
 #define MaxGadgetByte 20
 
-struct Gadget{
+struct Gadget
+{
     char string[MaxGadgetLen];
     char target_write[4];
     char total_target_write[20][4];
@@ -25,28 +26,45 @@ struct Gadget{
     struct Gadget *prev;
 };
 
+struct API
+{
+    struct Gadget *writeMEM;
+    struct Gadget *readMEM;
+    struct Gadget *writeREG;
+    struct Gadget *zeroREG;
+    struct Gadget *arithREG;
+    struct Gadget *INT;
+    int result_writeMEM;
+    int result_readMEM;
+    int result_writeREG;
+    int result_zeroREG;
+    int result_arithREG;
+    int result_INT;
+};
+
 int rop_chain(unsigned char **chain, unsigned char *binary, struct Arg *arg);
 int rop_parse_gadgets(struct Node *root, unsigned char *binary, struct Segment *text,struct Arg *arg);
 int rop_chain_execve(struct Node *root, struct Gadget *head,struct Arg *arg);
+int rop_build_api(struct Node *root, struct API **api, struct Arg *arg);
 
 int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, struct Arg *arg);
-int rop_write_memory_gadget(struct Gadget *head, struct Gadget *writeMEM, unsigned int dest, unsigned int value);
+int rop_write_memory_gadget(struct Gadget *head, struct API *api, unsigned int dest, unsigned int value);
 
 int rop_build_read_memory_gadget(struct Node *root, struct Gadget **readMEM, struct Arg *arg);
-int rop_read_memory_gadget(struct Gadget *head, struct Gadget *readMEM, char *dest, unsigned int src);
+int rop_read_memory_gadget(struct Gadget *head, struct API *api, char *dest, unsigned int src);
 
 int rop_build_write_register_gadget(struct Node *root, struct Gadget **writeREG, struct Arg *arg);
-int rop_write_register_gadget(struct Gadget *writeREG, char *dest, unsigned int value);
-int rop_chain_write_register_gadget(struct Gadget *head, struct Gadget *writeREG);
+int rop_write_register_gadget(struct API *api, char *dest, unsigned int value);
+int rop_chain_write_register_gadget(struct Gadget *head, struct API *api);
 
 int rop_build_zero_register_gadget(struct Node *root, struct Gadget **zeroREG, struct Arg *arg);
-int rop_zero_register_gadget(struct Gadget *head, struct Gadget *zeroREG, char *dest);
+int rop_zero_register_gadget(struct Gadget *head, struct API *api, char *dest);
 
 int rop_build_arith_register_gadget(struct Node *root, struct Gadget **arithREG, struct Arg *arg);
-int rop_arith_register_gadget(struct Gadget *head, struct Gadget *arithREG, char *dest, unsigned int value);
+int rop_arith_register_gadget(struct Gadget *head, struct API *api, char *dest, unsigned int value);
 
 int rop_build_interrupt_gadget(struct Node *root, struct Gadget **INT, struct Arg *arg);
-int rop_interrupt_gadget(struct Gadget *head, struct Gadget *INT);
+int rop_interrupt_gadget(struct Gadget *head, struct API *api);
 
 int rop_gadget_info_update(struct Gadget *gadget);
 void rop_parse_instruction(char *instr, struct Gadget *gadget);

