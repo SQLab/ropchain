@@ -70,36 +70,43 @@ int rop_parse_gadgets(struct Node *root, unsigned char *binary, struct Segment *
                     break;
                 }
                 /* Drop jump/call gadgets */
-                else if(strchr(insn[j].mnemonic, 'j') || strstr(insn[j].mnemonic, "call"))
+                else if(strchr(insn[j].mnemonic, 'j')
+                || strstr(insn[j].mnemonic, "call") || strstr(insn[j].mnemonic, "push"))
                 {
-                    i += j;
                     break;
                 }
                 /* Ret-type gadgets */
                 else if(!strcmp(insn[j].mnemonic, "ret") && j)
                 {
-                    total_gadget++;
-                    for(k = 0; k < j; k++)
+                    if(strlen(insn[j].op_str) == 0)
                     {
-                        if(arg->print && strlen(gadget_string)
-                        + strlen(insn[k].mnemonic) + strlen(insn[k].op_str) + 7 < MaxGadgetLen)
+                        total_gadget++;
+                        for(k = 0; k < j; k++)
                         {
-                            strcat(gadget_string, insn[k].mnemonic);
-                            if(strlen(insn[k].op_str) > 0)
+                            if(arg->print && strlen(gadget_string)
+                            + strlen(insn[k].mnemonic) + strlen(insn[k].op_str) + 7 < MaxGadgetLen)
                             {
-                                strcat(gadget_string, " ");
-                                strcat(gadget_string, insn[k].op_str);
+                                strcat(gadget_string, insn[k].mnemonic);
+                                if(strlen(insn[k].op_str) > 0)
+                                {
+                                    strcat(gadget_string, " ");
+                                    strcat(gadget_string, insn[k].op_str);
+                                }
+                                strcat(gadget_string, " ; ");
                             }
-                            strcat(gadget_string, " ; ");
+                        }
+                        /* tree build */
+                        tree_build(root, 0, insn, j+1);
+                        if(arg->print && strlen(gadget_string) + 3 < MaxGadgetLen)
+                        {
+                            strcat(gadget_string, "ret");
+                            /* print all gadgets */
+                            printf("%d\t0x0%x:\t%s\n", j+1, text->vaddr + i, gadget_string);
                         }
                     }
-                    /* tree build */
-                    tree_build(root, 0, insn, j+1);
-                    if(arg->print && strlen(gadget_string) + 3 < MaxGadgetLen)
+                    else
                     {
-                        strcat(gadget_string, "ret");
-                        /* print all gadgets */
-                        printf("%d\t0x0%x:\t%s\n", j+1, text->vaddr + i, gadget_string);
+                        i += j;
                     }
                     strcpy(gadget_string, "");
                     break;
