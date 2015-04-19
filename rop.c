@@ -148,6 +148,7 @@ int rop_chain_execve(struct Node *root, struct Gadget *head, struct Arg *arg)
     rop_end_api(api);
     return 0;
 }
+
 void rop_build_api(struct Node *root, struct API **api, struct Arg *arg)
 {
     *api = (struct API *)malloc(sizeof(struct API));
@@ -159,6 +160,7 @@ void rop_build_api(struct Node *root, struct API **api, struct Arg *arg)
     (*api)->result_writeMEM = rop_build_write_memory_gadget(root, &((*api)->writeMEM), arg);
     (*api)->result_readMEM = rop_build_read_memory_gadget(root, &((*api)->readMEM), arg);
     (*api)->result_writeREG = rop_build_write_register_gadget(root, &((*api)->writeREG), arg);
+    (*api)->result_xchgREG = rop_build_xchg_register_gadget(root, &((*api)->xchgREG), arg);
     (*api)->result_zeroREG = rop_build_zero_register_gadget(root, &((*api)->zeroREG), arg);
     (*api)->result_addREG = rop_build_add_register_gadget(root, &((*api)->addREG), arg);
     (*api)->result_INT = rop_build_interrupt_gadget(root, &((*api)->INT), arg);
@@ -337,6 +339,33 @@ int rop_write_register_gadget(struct API *api, char *dest, unsigned int value)
         temp = temp->next;
     }
     printf("X: Can't find writeREG gadget to do this operation.\n");
+    exit(-1);
+}
+
+int rop_xchg_register_gadget(struct Gadget *head, struct API *api, char *op1, char *op2)
+{
+    struct Gadget *temp;
+    char gadget_string[MaxGadgetLen] = "";
+    char gadget_string2[MaxGadgetLen] = "";
+    char string_padding[20];
+    temp = api->xchgREG->next;
+    sprintf(gadget_string, "xchg %s, %s", op1, op2);
+    sprintf(gadget_string2, "xchg %s, %s", op2, op1);
+    while(temp)
+    {
+        if(strstr(temp->string ,gadget_string) || strstr(temp->string ,gadget_string2))
+        {
+            rop_chain_list_add(head, temp->address, temp->string, 1);
+            if(temp->padding > 0)
+            {
+                sprintf(string_padding, "padding*%d", temp->padding);
+                rop_chain_list_add(head, 0x41414141, string_padding, 1);
+            }
+            return 0;
+        }
+        temp = temp->next;
+    }
+    printf("X: Can't find xchgREG gadget to do this operation.\n");
     exit(-1);
 }
 
@@ -778,6 +807,63 @@ int rop_build_zero_register_gadget(struct Node *root, struct Gadget **zeroREG, s
             temp->vaild = 0;
             i--;
             continue;
+        }
+    }
+    return 0;
+}
+
+int rop_build_xchg_register_gadget(struct Node *root, struct Gadget **xchgREG, struct Arg *arg)
+{
+    int valid;
+    struct Node *temp;
+    char gadget_string[MaxGadgetLen] = "";
+    char regexp_string[MaxRegExpLen] = "";
+    char *op[4] = {"eax", "ebx", "ecx", "edx"};
+    int i, j, depth, restart;
+    printf("\n--- Build XchgREG Gadgets ---\n");
+    *xchgREG = (struct Gadget *)malloc(sizeof(struct Gadget));
+    if(!*xchgREG)
+    {
+        fprintf(stderr ,"malloc failed.\n");
+        exit(-1);
+    }
+    rop_chain_list_init(*xchgREG);
+
+    for(i = 0; i < 4; i++)
+    {
+        for(j = 0; j < 4; j++)
+        {
+            restart = 0;
+            strcpy(regexp_string, "xchg ___, ___");
+            strncpy(&regexp_string[5], op[i], 3);
+            strncpy(&regexp_string[10], op[j], 3);
+            for(depth = 1; depth < arg->depth; depth++)
+            {
+                memset(gadget_string, 0, MaxGadgetLen);
+                temp = tree_search(root, regexp_string, gadget_string, depth, arg);
+                if(temp)
+                {
+                    printf(" O: Find XCHG Gadget \"%s\"\n", gadget_string);
+                    break;
+                }
+                else if(depth == arg->depth-1)
+                {
+                    printf(" X: Can't find gadget \"%s\"\n", regexp_string);
+                    restart = 1;
+                    break;
+                }
+            }
+            if(restart)
+            {
+                continue;
+            }
+            valid = rop_chain_list_add(*xchgREG, temp->address, gadget_string, 1);
+            if(valid == -1)
+            {
+                temp->vaild = 0;
+                j--;
+                continue;
+            }
         }
     }
     return 0;

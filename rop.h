@@ -32,12 +32,14 @@ struct API
     struct Gadget *readMEM;
     struct Gadget *writeREG;
     struct Gadget *zeroREG;
+    struct Gadget *xchgREG;
     struct Gadget *addREG;
     struct Gadget *INT;
     int result_writeMEM;
     int result_readMEM;
     int result_writeREG;
     int result_zeroREG;
+    int result_xchgREG;
     int result_addREG;
     int result_INT;
 };
@@ -61,6 +63,8 @@ int rop_chain_write_register_gadget(struct Gadget *head, struct API *api);
 int rop_build_zero_register_gadget(struct Node *root, struct Gadget **zeroREG, struct Arg *arg);
 int rop_zero_register_gadget(struct Gadget *head, struct API *api, char *dest);
 
+int rop_build_xchg_register_gadget(struct Node *root, struct Gadget **xchgREG, struct Arg *arg);
+int rop_xchg_register_gadget(struct Gadget *head, struct API *api, char *op1, char *op2);
 int rop_build_add_register_gadget(struct Node *root, struct Gadget **addREG, struct Arg *arg);
 int rop_add_register_gadget(struct Gadget *head, struct API *api, char *dest, unsigned int value);
 
