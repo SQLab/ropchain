@@ -45,7 +45,8 @@ struct API
 int rop_chain(unsigned char **chain, unsigned char *binary, struct Arg *arg);
 int rop_parse_gadgets(struct Node *root, unsigned char *binary, struct Segment *text,struct Arg *arg);
 int rop_chain_execve(struct Node *root, struct Gadget *head,struct Arg *arg);
-int rop_build_api(struct Node *root, struct API **api, struct Arg *arg);
+void rop_build_api(struct Node *root, struct API **api, struct Arg *arg);
+void rop_end_api(struct API *api);
 
 int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, struct Arg *arg);
 int rop_write_memory_gadget(struct Gadget *head, struct API *api, unsigned int dest, unsigned int value);

@@ -145,15 +145,10 @@ int rop_chain_execve(struct Node *root, struct Gadget *head, struct Arg *arg)
     rop_add_register_gadget(head, api, "eax", 11);
     rop_interrupt_gadget(head, api);
 
-    rop_chain_list_free(api->writeMEM);
-    rop_chain_list_free(api->readMEM);
-    rop_chain_list_free(api->writeREG);
-    rop_chain_list_free(api->zeroREG);
-    rop_chain_list_free(api->addREG);
-    rop_chain_list_free(api->INT);
+    rop_end_api(api);
     return 0;
 }
-int rop_build_api(struct Node *root, struct API **api, struct Arg *arg)
+void rop_build_api(struct Node *root, struct API **api, struct Arg *arg)
 {
     *api = (struct API *)malloc(sizeof(struct API));
     if(!*api)
@@ -167,7 +162,16 @@ int rop_build_api(struct Node *root, struct API **api, struct Arg *arg)
     (*api)->result_zeroREG = rop_build_zero_register_gadget(root, &((*api)->zeroREG), arg);
     (*api)->result_addREG = rop_build_add_register_gadget(root, &((*api)->addREG), arg);
     (*api)->result_INT = rop_build_interrupt_gadget(root, &((*api)->INT), arg);
-    return 0;
+}
+
+void rop_end_api(struct API *api)
+{
+    rop_chain_list_free(api->writeMEM);
+    rop_chain_list_free(api->readMEM);
+    rop_chain_list_free(api->writeREG);
+    rop_chain_list_free(api->zeroREG);
+    rop_chain_list_free(api->addREG);
+    rop_chain_list_free(api->INT);
 }
 
 int rop_chain_write_register_gadget(struct Gadget *head, struct API *api)
