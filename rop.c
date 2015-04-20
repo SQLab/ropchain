@@ -171,6 +171,7 @@ void rop_build_api(struct Node *root, struct API **api, struct Arg *arg)
     (*api)->result_zeroREG = rop_build_zero_register_gadget(root, &((*api)->zeroREG), arg);
     (*api)->result_shiftREG = rop_build_shift_register_gadget(root, &((*api)->shiftREG), arg);
     (*api)->result_addREG = rop_build_add_register_gadget(root, &((*api)->addREG), arg);
+    (*api)->result_cmpFLAG = rop_build_cmp_flag_gadget(root, &((*api)->cmpFLAG), arg);
     (*api)->result_INT = rop_build_interrupt_gadget(root, &((*api)->INT), arg);
 }
 
@@ -183,6 +184,7 @@ void rop_end_api(struct API *api)
     rop_chain_list_free(api->shiftREG);
     rop_chain_list_free(api->xchgREG);
     rop_chain_list_free(api->addREG);
+    rop_chain_list_free(api->cmpFLAG);
     rop_chain_list_free(api->INT);
 }
 
@@ -485,6 +487,42 @@ int rop_add_register_gadget(struct Gadget *head, struct API *api, char *dest, un
     exit(-1);
 }
 
+int rop_cmp_flag_gadget(struct Gadget *head, struct API *api, char *op1, char *op2)
+{
+    struct Gadget *temp;
+    char string_padding[20];
+    char string_instruct1[20];
+    char string_instruct2[20];
+    sprintf(string_instruct1, "sub %s, %s", op1, op2);
+    sprintf(string_instruct2, "sub %s, %s", op2, op1);
+    temp = api->cmpFLAG->next;
+    while(temp)
+    {
+        if(strstr(temp->string, string_instruct1) || strstr(temp->string, string_instruct2))
+        {
+            if(strcmp(temp->next->string, "null"))
+            {
+                rop_chain_list_add(head, temp->address, temp->string, 1);
+                if(temp->padding > 0)
+                {
+                    sprintf(string_padding, "padding*%d", temp->padding);
+                    rop_chain_list_add(head, 0x41414141, string_padding, 1);
+                }
+                rop_chain_list_add(head, temp->next->address, temp->next->string, 1);
+                if(temp->next->padding > 0)
+                {
+                    sprintf(string_padding, "padding*%d", temp->next->padding);
+                    rop_chain_list_add(head, 0x41414141, string_padding, 1);
+                }
+                return 0;
+            }
+        }
+        temp = temp->next->next;
+    }
+    printf("X: Can't find cmpFLAG gadget to do this operation.\n");
+    exit(-1);
+}
+
 int rop_interrupt_gadget(struct Gadget *head, struct API *api)
 {
     if(api->result_INT == -1)
@@ -743,6 +781,10 @@ int rop_build_read_memory_gadget(struct Node *root, struct Gadget **readMEM, str
                     continue;
                 }
             }
+            else
+            {
+                restart = 0;
+            }
         }
         break;
     }
@@ -991,7 +1033,7 @@ int rop_build_add_register_gadget(struct Node *root, struct Gadget **addREG, str
     char *op[4] = {"eax", "ebx", "ecx", "edx"};
     int i, depth, restart;
     int  inc_valid = -1;
-    printf("\n--- Build addREG Gadgets ---\n");
+    printf("\n--- Build AddREG Gadgets ---\n");
     *addREG = (struct Gadget *)malloc(sizeof(struct Gadget));
     if(!*addREG)
     {
@@ -1040,12 +1082,112 @@ int rop_build_add_register_gadget(struct Node *root, struct Gadget **addREG, str
     return 0;
 }
 
+int rop_build_cmp_flag_gadget(struct Node *root, struct Gadget **cmpFLAG, struct Arg *arg)
+{
+    int valid;
+    struct Node *sub_temp, *neg_temp;
+    char sub_gadget_string[MaxGadgetLen] = "";
+    char neg_gadget_string[MaxGadgetLen] = "";
+    char regexp_string[MaxRegExpLen] = "";
+    char *op[4] = {"eax", "ebx", "ecx", "edx"};
+    int i, j, depth, restart;
+    printf("\n--- Build CmpFLAG Gadgets ---\n");
+    *cmpFLAG = (struct Gadget *)malloc(sizeof(struct Gadget));
+    if(!*cmpFLAG)
+    {
+        fprintf(stderr ,"malloc failed.\n");
+        exit(-1);
+    }
+    rop_chain_list_init(*cmpFLAG);
+
+    for(i = 0; i < 4; i++)
+    {
+        for(j = 0; j < 4; j++)
+        {
+            if(i == j)
+            {
+                continue;
+            }
+            restart = 0;
+            strcpy(regexp_string, "sub ___, ___");
+            strncpy(&regexp_string[4], op[i], 3);
+            strncpy(&regexp_string[9], op[j], 3);
+            for(depth = 1; depth < arg->depth; depth++)
+            {
+                memset(sub_gadget_string, 0, MaxGadgetLen);
+                sub_temp = tree_search(root, regexp_string, sub_gadget_string, depth, arg);
+                if(sub_temp)
+                {
+                    printf(" O| 0x%08x -> Find SUB Gadget \"%s\"\n", sub_temp->address, sub_gadget_string);
+                    break;
+                }
+                else if(depth == arg->depth-1)
+                {
+                    if(arg->verbose)
+                    {
+                        printf(" X| Can't find gadget \"%s\"\n", regexp_string);
+                    }
+                    restart = 1;
+                    break;
+                }
+            }
+            if(restart)
+            {
+                continue;
+            }
+            /* find neg e_x gadget */
+            strcpy(regexp_string, "neg ___");
+            strncpy(&regexp_string[4], op[i], 3);
+            for(depth = 1; depth < arg->depth; depth++)
+            {
+                memset(neg_gadget_string, 0, MaxGadgetLen);
+                neg_temp = tree_search(root, regexp_string, neg_gadget_string, depth, arg);
+                if(neg_temp)
+                {
+                    printf(" O| 0x%08x -> Find NEG Gadget \"%s\"\n", neg_temp->address, neg_gadget_string);
+                    break;
+                }
+                else if(depth == arg->depth-1)
+                {
+                    if(arg->verbose)
+                    {
+                        printf(" X| Can't find gadget \"%s\"\n", regexp_string);
+                    }
+                    restart = 1;
+                    break;
+                }
+            }
+            if(restart)
+            {
+                sub_temp->vaild = 0;
+                continue;
+            }
+            valid = rop_chain_list_add(*cmpFLAG, sub_temp->address, sub_gadget_string, 1);
+            if(valid == -1)
+            {
+                sub_temp->vaild = 0;
+                j--;
+                continue;
+            }
+            valid = rop_chain_list_add(*cmpFLAG, neg_temp->address, neg_gadget_string, 1);
+            if(valid == -1)
+            {
+                neg_temp->vaild = 0;
+                j--;
+                rop_chain_list_add(*cmpFLAG, 0, "null", 1);
+                continue;
+            }
+        }
+    }
+    return 0;
+}
+
 int rop_build_interrupt_gadget(struct Node *root, struct Gadget **INT, struct Arg *arg)
 {
     struct Node *temp;
     char gadget_string[MaxGadgetLen] = "";
     char regexp_string[MaxRegExpLen] = "";
-    printf("\n--- Build interrupt Gadgets ---\n");
+    printf("\n--- Build Interrupt Gadgets ---\n");
     *INT = (struct Gadget *)malloc(sizeof(struct Gadget));
     if(!*INT)
     {
