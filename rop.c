@@ -498,12 +498,15 @@ int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, s
             mov_temp = tree_search(root, regexp_string, gadget_string, depth, arg);
             if(mov_temp)
             {
-                printf(" O: Find MOV Gadget \"%s\"\n", gadget_string);
+                printf(" O| 0x%08x -> Find MOV Gadget \"%s\"\n", mov_temp->address, gadget_string);
                 break;
             }
             else if(depth == arg->depth-1)
             {
-                printf(" X: Can't find WriteMEM gadget.\n");
+                if(arg->verbose)
+                {
+                    printf(" X| Can't find WriteMEM gadget.\n");
+                }
                 return -1;
             }
         }
@@ -513,7 +516,7 @@ int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, s
         op[1][3] = 0;
         if(!strcmp(op[0], "esp") || !strcmp(op[1], "esp"))
         {
-            printf(" X: Can't use esp gadget. Try to find other mov gadget\n");
+            printf(" X| Can't use esp gadget. Try to find other mov gadget\n");
             mov_temp->vaild = 0;
             continue;
         }
@@ -534,12 +537,15 @@ int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, s
                 temp = tree_search(root, regexp_string, gadget_string, depth, arg);
                 if(temp)
                 {
-                    printf(" O: Find POP Gadget \"%s\"\n", gadget_string);
+                    printf(" O| 0x%08x -> Find POP Gadget \"%s\"\n", temp->address, gadget_string);
                     break;
                 }
                 else if(depth == arg->depth-1)
                 {
-                    printf(" X: Can't find gadget \"pop %s\" Try to find other mov gadget\n", op[i]);
+                    if(arg->verbose)
+                    {
+                        printf(" X| Can't find gadget \"pop %s\" Try to find other mov gadget\n", op[i]);
+                    }
                     mov_temp->vaild = 0;
                     rop_chain_list_free(*writeMEM);
                     restart = 1;
@@ -576,12 +582,15 @@ int rop_build_write_memory_gadget(struct Node *root, struct Gadget **writeMEM, s
             temp = tree_search(root, regexp_string, gadget_string, depth, arg);
             if(temp)
             {
-                printf(" O: Find XOR Gadget \"%s\"\n", gadget_string);
+                printf(" O| 0x%08x -> Find XOR Gadget \"%s\"\n", temp->address, gadget_string);
                 break;
             }
             else if(depth == arg->depth-1)
             {
-                printf(" X: Can't find gadget \"%s\" Try to find other mov gadget\n", regexp_string);
+                if(arg->verbose)
+                {
+                    printf(" X| Can't find gadget \"%s\" Try to find other mov gadget\n", regexp_string);
+                }
                 mov_temp->vaild = 0;
                 rop_chain_list_free(*writeMEM);
                 restart = 1;
@@ -639,12 +648,15 @@ int rop_build_read_memory_gadget(struct Node *root, struct Gadget **readMEM, str
                 mov_temp = tree_search(root, regexp_string, mov_string, depth, arg);
                 if(mov_temp)
                 {
-                    printf(" O: Find MOV Gadget \"%s\"\n", mov_string);
+                    printf(" O| 0x%08x -> Find MOV Gadget \"%s\"\n", mov_temp->address, mov_string);
                     break;
                 }
                 else if(depth == arg->depth-1)
                 {
-                    printf(" X: Can't find gadget \"mov %s, dword ptr reg\"\n", dst_op[i]);
+                    if(arg->verbose)
+                    {
+                        printf(" X| Can't find gadget \"mov %s, dword ptr reg\"\n", dst_op[i]);
+                    }
                     restart = 1;
                     break;
                 }
@@ -658,7 +670,7 @@ int rop_build_read_memory_gadget(struct Node *root, struct Gadget **readMEM, str
             src_op[3] = 0;
             if(!strcmp(src_op, "esp"))
             {
-                printf(" X: Can't use esp gadget. Try to find other mov gadget\n");
+                printf(" X| Can't use esp gadget. Try to find other mov gadget\n");
                 mov_temp->vaild = 0;
                 i--;
                 continue;
@@ -672,12 +684,15 @@ int rop_build_read_memory_gadget(struct Node *root, struct Gadget **readMEM, str
                 temp = tree_search(root, regexp_string, pop_string, depth, arg);
                 if(temp)
                 {
-                    printf(" O: Find POP Gadget \"%s\"\n", pop_string);
+                    printf(" O| 0x%08x -> Find POP Gadget \"%s\"\n", temp->address, pop_string);
                     break;
                 }
                 else if(depth == arg->depth-1)
                 {
-                    printf(" X: Can't find gadget \"pop %s\" Try to find other mov gadget\n", src_op);
+                    if(arg->verbose)
+                    {
+                        printf(" X| Can't find gadget \"pop %s\" Try to find other mov gadget\n", src_op);
+                    }
                     mov_temp->vaild = 0;
                     restart = 1;
                     i--;
@@ -737,12 +752,15 @@ int rop_build_write_register_gadget(struct Node *root, struct Gadget **writeREG,
             temp = tree_search(root, regexp_string, gadget_string, depth, arg);
             if(temp)
             {
-                printf(" O: Find POP Gadget \"%s\"\n", gadget_string);
+                printf(" O| 0x%08x -> Find POP Gadget \"%s\"\n", temp->address, gadget_string);
                 break;
             }
             else if(depth == arg->depth-1)
             {
-                printf(" X: Can't find gadget \"pop %s\"\n", op[i]);
+                if(arg->verbose)
+                {
+                    printf(" X| Can't find gadget \"pop %s\"\n", op[i]);
+                }
                 restart = 1;
                 break;
             }
@@ -794,12 +812,15 @@ int rop_build_zero_register_gadget(struct Node *root, struct Gadget **zeroREG, s
             temp = tree_search(root, regexp_string, gadget_string, depth, arg);
             if(temp)
             {
-                printf(" O: Find XOR Gadget \"%s\"\n", gadget_string);
+                printf(" O| 0x%08x -> Find XOR Gadget \"%s\"\n", temp->address, gadget_string);
                 break;
             }
             else if(depth == arg->depth-1)
             {
-                printf(" X: Can't find gadget \"%s\"\n", regexp_string);
+                if(arg->verbose)
+                {
+                    printf(" X| Can't find gadget \"%s\"\n", regexp_string);
+                }
                 restart = 1;
                 break;
             }
@@ -850,12 +871,15 @@ int rop_build_xchg_register_gadget(struct Node *root, struct Gadget **xchgREG, s
                 temp = tree_search(root, regexp_string, gadget_string, depth, arg);
                 if(temp)
                 {
-                    printf(" O: Find XCHG Gadget \"%s\"\n", gadget_string);
+                    printf(" O| 0x%08x -> Find XCHG Gadget \"%s\"\n", temp->address, gadget_string);
                     break;
                 }
                 else if(depth == arg->depth-1)
                 {
-                    printf(" X: Can't find gadget \"%s\"\n", regexp_string);
+                    if(arg->verbose)
+                    {
+                        printf(" X| Can't find gadget \"%s\"\n", regexp_string);
+                    }
                     restart = 1;
                     break;
                 }
@@ -905,12 +929,15 @@ int rop_build_add_register_gadget(struct Node *root, struct Gadget **addREG, str
             temp = tree_search(root, regexp_string, gadget_string, depth, arg);
             if(temp)
             {
-                printf(" O: Find INC Gadget \"%s\"\n", gadget_string);
+                printf(" O| 0x%08x -> Find INC Gadget \"%s\"\n", temp->address, gadget_string);
                 break;
             }
             else if(depth == arg->depth-1)
             {
-                printf(" X: Can't find gadget \"inc %s\"\n", op[i]);
+                if(arg->verbose)
+                {
+                    printf(" X| Can't find gadget \"inc %s\"\n", op[i]);
+                }
                 restart = 1;
                 break;
             }
@@ -948,20 +975,23 @@ int rop_build_interrupt_gadget(struct Node *root, struct Gadget **INT, struct Ar
     temp = tree_search(root, regexp_string, gadget_string, 1, arg);
     if(temp)
     {
-        printf(" O: Find INT Gadget \"%s\"\n", gadget_string);
+        printf(" O| 0x%08x -> Find INT Gadget \"%s\"\n", temp->address, gadget_string);
         rop_chain_list_add(*INT, temp->address, gadget_string, 1);
         return 0;
     }
     else
     {
-        printf(" X: Can't find gadget \"%s\"\n", regexp_string);
+        if(arg->verbose)
+        {
+            printf(" X| Can't find gadget \"%s\"\n", regexp_string);
+        }
         return -1;
     }
 }
 
 int rop_gadget_info_update(struct Gadget *gadget)
 {
-    int i;
+    int i, valid;
     char *instr, *end_instr;
     char string[MaxGadgetLen];
     gadget->padding = 0;
@@ -974,7 +1004,11 @@ int rop_gadget_info_update(struct Gadget *gadget)
         instr = strtok_r(string, ";", &end_instr);
         if(instr != NULL)
         {
-            rop_parse_instruction(instr, gadget);
+            valid = rop_parse_instruction(instr, gadget);
+            if(valid == -1)
+            {
+                return -1;
+            }
         }
     }
     while(instr != NULL)
@@ -983,7 +1017,11 @@ int rop_gadget_info_update(struct Gadget *gadget)
         if(instr != NULL)
         {
             instr++;
-            rop_parse_instruction(instr, gadget);
+            valid = rop_parse_instruction(instr, gadget);
+            if(valid == -1)
+            {
+                return -1;
+            }
         }
     }
     for(i = 1; i < gadget->gadget_write_no; i++)
@@ -991,14 +1029,14 @@ int rop_gadget_info_update(struct Gadget *gadget)
         if(!strcmp(gadget->gadget_write[i], gadget->target_write) &&
         strcmp(gadget->target_write, "nul"))
         {
-            printf(" X: Overwrite the target register. Try to find other gadget.\n");
+            printf(" X| Overwrite the target register. Try to find other gadget.\n");
             return -1;
         }
     }
     return 0;
 }
 
-void rop_parse_instruction(char *instr, struct Gadget *gadget)
+int rop_parse_instruction(char *instr, struct Gadget *gadget)
 {
     char *operation = NULL;
     char *dst_operand = NULL;
@@ -1023,7 +1061,7 @@ void rop_parse_instruction(char *instr, struct Gadget *gadget)
     }
     else
     {
-        return;
+        return 0;
     }
     if(gadget->gadget_write_no == 0)
     {
@@ -1043,19 +1081,19 @@ void rop_parse_instruction(char *instr, struct Gadget *gadget)
     {
         strcpy(reg, "nul");
     }
-    else if(strstr(dst_operand, "eax"))
+    else if(strstr(dst_operand, "eax") || strstr(dst_operand, "al"))
     {
         strcpy(reg, "eax");
     }
-    else if(strstr(dst_operand, "ebx"))
+    else if(strstr(dst_operand, "ebx") || strstr(dst_operand, "bl"))
     {
         strcpy(reg, "ebx");
     }
-    else if(strstr(dst_operand, "ecx"))
+    else if(strstr(dst_operand, "ecx") || strstr(dst_operand, "cl"))
     {
         strcpy(reg, "ecx");
     }
-    else if(strstr(dst_operand, "edx"))
+    else if(strstr(dst_operand, "edx") || strstr(dst_operand, "dl"))
     {
         strcpy(reg, "edx");
     }
@@ -1071,6 +1109,11 @@ void rop_parse_instruction(char *instr, struct Gadget *gadget)
             padding = strtol(src_operand, &end_str, 16);
             gadget->padding += (int)padding;
         }
+        else
+        {
+            printf(" X| Can't use esp gadget. Try to find other gadgets.\n");
+            return -1;
+        }
     }
     else if(strstr(dst_operand, "ebp"))
     {
@@ -1080,6 +1123,7 @@ void rop_parse_instruction(char *instr, struct Gadget *gadget)
     {
         strcpy(reg, "nul");
     }
+    return 0;
 }
 
 void rop_chain_list_init(struct Gadget *head)

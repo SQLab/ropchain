@@ -21,6 +21,7 @@ struct Node{
 
 struct Arg{
     bool print;
+    bool verbose;
     int offset;
     int depth;
     unsigned char badbyte[20];

@@ -3,11 +3,12 @@
 void usage(void)
 {
     printf("Usage:\n");
-    printf(" ropchain <file> [-p <bool>] [-o <offset>] [-b <badbyte>] [-l <length>]\n");
+    printf(" ropchain <file> [-p <bool>] [-o <offset>] [-b <badbyte>] [-l <length>] [-v <bool>]\n");
     printf(" -p\tPrint all gadgets.\n");
     printf(" -o\tAdd padding(offset) bytes to payload.\n");
     printf(" -b\tBypass badbyte gadgets. ex: \"00|20|0a\"\n");
     printf(" -l\tMaximum gadgets length\"\n");
+    printf(" -v\tVerbose gadgets messages\"\n");
     exit (-1);
 }
 
@@ -83,6 +84,7 @@ int parse_arg(int argc, char** argv, struct Arg *arg)
     char *endptr;
     char *pch;
     arg->print = 1;
+    arg->verbose = 0;
     arg->depth = 2;
     arg->offset = 0;
     arg->badbyte_no = 0;
@@ -97,6 +99,12 @@ int parse_arg(int argc, char** argv, struct Arg *arg)
                     if(!strcmp(argv[2], "false") || !strcmp(argv[2], "0"))
                     {
                         arg->print = 0;
+                    }
+                    break;
+                case 'v':
+                    if(!strcmp(argv[2], "True") || !strcmp(argv[2], "1"))
+                    {
+                        arg->verbose = 1;
                     }
                     break;
                 case 'o':
