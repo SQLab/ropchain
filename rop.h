@@ -33,6 +33,7 @@ struct API
     struct Gadget *writeREG;
     struct Gadget *zeroREG;
     struct Gadget *xchgREG;
+    struct Gadget *shiftREG;
     struct Gadget *addREG;
     struct Gadget *INT;
     int result_writeMEM;
@@ -40,6 +41,7 @@ struct API
     int result_writeREG;
     int result_zeroREG;
     int result_xchgREG;
+    int result_shiftREG;
     int result_addREG;
     int result_INT;
 };
@@ -67,6 +69,9 @@ int rop_build_xchg_register_gadget(struct Node *root, struct Gadget **xchgREG, s
 int rop_xchg_register_gadget(struct Gadget *head, struct API *api, char *op1, char *op2);
 int rop_build_add_register_gadget(struct Node *root, struct Gadget **addREG, struct Arg *arg);
 int rop_add_register_gadget(struct Gadget *head, struct API *api, char *dest, unsigned int value);
+
+int rop_build_shift_register_gadget(struct Node *root, struct Gadget **shiftREG, struct Arg *arg);
+int rop_shift_register_gadget(struct Gadget *head, struct API *api, char *dest);
 
 int rop_build_interrupt_gadget(struct Node *root, struct Gadget **INT, struct Arg *arg);
 int rop_interrupt_gadget(struct Gadget *head, struct API *api);
