@@ -39,6 +39,7 @@ struct API
     struct Gadget *cmpFLAG;
     struct Gadget *saveFLAG;
     struct Gadget *deltaFLAG;
+    struct Gadget *jumpFLAG;
     struct Gadget *INT;
     int result_writeMEM;
     int result_readMEM;
@@ -51,6 +52,7 @@ struct API
     int result_cmpFLAG;
     int result_saveFLAG;
     int result_deltaFLAG;
+    int result_jumpFLAG;
     int result_INT;
 };
 
@@ -91,6 +93,8 @@ int rop_build_save_flag_gadget(struct Node *root, struct Gadget **saveFLAG, stru
 int rop_save_flag_gadget(struct Gadget *head, struct API *api, unsigned int dest);
 int rop_build_delta_flag_gadget(struct Node *root, struct Gadget **deltaFLAG, struct Arg *arg, struct API *api);
 int rop_delta_flag_gadget(struct Gadget *head, struct API *api, unsigned int dest, int delta, char *flag);
+int rop_build_conditional_jump_gadget(struct Node *root, struct Gadget **jumpFLAG, struct Arg *arg);
+int rop_conditional_jump_gadget(struct Gadget *head, struct API *api, char *delta);
 
 int rop_build_interrupt_gadget(struct Node *root, struct Gadget **INT, struct Arg *arg);
 int rop_interrupt_gadget(struct Gadget *head, struct API *api);

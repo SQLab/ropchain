@@ -139,6 +139,7 @@ int rop_chain_execve(struct Node *root, struct Gadget *head, struct Arg *arg)
 
     printf("\n--- Start chain *execve(\"/bin/sh\")* gadgets ---\n\n");
     rop_chain_list_init(head);
+
     rop_write_memory_gadget(head, api, 0x080efff0, 0x6e69622f);
     rop_write_memory_gadget(head, api, 0x080efff4, 0x68732f2f);
     rop_write_memory_gadget(head, api, 0x080efff8, 0);
@@ -154,6 +155,7 @@ int rop_chain_execve(struct Node *root, struct Gadget *head, struct Arg *arg)
     rop_read_memory_gadget(head, api, "ecx", 0x080effe0);
     rop_move_register_gadget(head, api, "edx", "ecx");
     rop_delta_flag_gadget(head, api, 0x080effe0, 32, "edx");
+    rop_conditional_jump_gadget(head, api, "eax");
 
     rop_zero_register_gadget(head, api, "eax");
     rop_add_register_gadget(head, api, "eax", 11);
@@ -182,6 +184,7 @@ void rop_build_api(struct Node *root, struct API **api, struct Arg *arg)
     (*api)->result_cmpFLAG = rop_build_cmp_flag_gadget(root, &((*api)->cmpFLAG), arg);
     (*api)->result_saveFLAG = rop_build_save_flag_gadget(root, &((*api)->saveFLAG), arg);
     (*api)->result_deltaFLAG = rop_build_delta_flag_gadget(root, &((*api)->deltaFLAG), arg, *api);
+    (*api)->result_jumpFLAG = rop_build_conditional_jump_gadget(root, &((*api)->jumpFLAG), arg);
     (*api)->result_INT = rop_build_interrupt_gadget(root, &((*api)->INT), arg);
 }
 
@@ -692,6 +695,33 @@ int rop_delta_flag_gadget(struct Gadget *head, struct API *api, unsigned int des
     }
     return 0;
 }
+
+int rop_conditional_jump_gadget(struct Gadget *head, struct API *api, char *delta)
+{
+    struct Gadget *temp;
+    char string_padding[20];
+    char gadget_string[MaxGadgetLen];
+    temp = api->jumpFLAG->next;
+    while(temp)
+    {
+        strcpy(gadget_string, temp->string);
+        strtok(gadget_string, ";");
+        if(strstr(gadget_string ,delta))
+        {
+            rop_chain_list_add(head, temp->address, temp->string, 1);
+            if(temp->padding > 0)
+            {
+                sprintf(string_padding, "padding*%d", temp->padding);
+                rop_chain_list_add(head, 0x41414141, string_padding, 1);
+            }
+            return 0;
+        }
+        temp = temp->next;
+    }
+    printf("X: Can't find jumpFLAG gadget to do this operation.\n");
+    exit(-1);
+}
+
 int rop_interrupt_gadget(struct Gadget *head, struct API *api)
 {
     if(api->result_INT == -1)
@@ -1772,8 +1802,17 @@ int rop_build_delta_flag_gadget(struct Node *root, struct Gadget **deltaFLAG, st
                         {
                             printf(" X| Can't find MOV gadget.\n");
                         }
+                        restart = 1;
                         break;
                     }
+                }
+                if(restart == 1 && k == 0)
+                {
+                    continue;
+                }
+                else if(restart == 1 && k == 1)
+                {
+                    break;
                 }
                 strncpy(mov_op[0], &mov_gadget_string[15], 3);
                 strncpy(mov_op[1], &mov_gadget_string[21], 3);
@@ -1815,6 +1854,63 @@ int rop_build_delta_flag_gadget(struct Node *root, struct Gadget **deltaFLAG, st
                 rop_chain_list_add(*deltaFLAG, writeREG->address, writeREG->string, 1);
                 rop_chain_list_add(*deltaFLAG, mov_temp->address, mov_gadget_string, 1);
             }
+        }
+    }
+    return 0;
+}
+
+int rop_build_conditional_jump_gadget(struct Node *root, struct Gadget **jumpFLAG, struct Arg *arg)
+{
+    int valid;
+    struct Node *temp;
+    char gadget_string[MaxGadgetLen] = "";
+    char regexp_string[MaxRegExpLen] = "";
+    char *op[4] = {"eax", "ebx", "ecx", "edx"};
+    int i, depth, restart;
+    printf("\n--- Build JumpFLAG Gadgets ---\n");
+    *jumpFLAG = (struct Gadget *)malloc(sizeof(struct Gadget));
+    if(!*jumpFLAG)
+    {
+        fprintf(stderr ,"malloc failed.\n");
+        exit(-1);
+    }
+    rop_chain_list_init(*jumpFLAG);
+
+    /* find add esp, [reg] gadget */
+    for(i = 0; i < 4; i++)
+    {
+        restart = 0;
+        strcpy(regexp_string, "add esp, dword ptr .___]");
+        strncpy(&regexp_string[20], op[i], 3);
+        for(depth = 1; depth < arg->depth; depth++)
+        {
+            memset(gadget_string, 0, MaxGadgetLen);
+            temp = tree_search(root, regexp_string, gadget_string, depth, arg);
+            if(temp)
+            {
+                printf(" O| 0x%08x -> Find ADD Gadget \"%s\"\n", temp->address, gadget_string);
+                break;
+            }
+            else if(depth == arg->depth-1)
+            {
+                if(arg->verbose)
+                {
+                    printf(" X| Can't find gadget \"shift %s, cnt\"\n", op[i]);
+                }
+                restart = 1;
+                break;
+            }
+        }
+        if(restart)
+        {
+            continue;
+        }
+        valid = rop_chain_list_add(*jumpFLAG, temp->address, gadget_string, 1);
+        if(valid == -1)
+        {
+            temp->vaild = 0;
+            i--;
+            continue;
         }
     }
     return 0;
@@ -1890,7 +1986,7 @@ int rop_gadget_info_update(struct Gadget *gadget)
     for(i = 1; i < gadget->gadget_write_no; i++)
     {
         if(!strcmp(gadget->gadget_write[i], gadget->target_write) &&
-        strcmp(gadget->target_write, "nul"))
+        strcmp(gadget->target_write, "nul") && strcmp(gadget->target_write, "esp"))
         {
             printf(" X| Overwrite the target register. Try to find other gadget.\n");
             return -1;
@@ -1969,8 +2065,11 @@ int rop_parse_instruction(char *instr, struct Gadget *gadget)
         }
         else if(!strcmp(operation, "add"))
         {
-            padding = strtol(src_operand, &end_str, 16);
-            gadget->padding += (int)padding;
+            if(!strstr(src_operand, "ptr"))
+            {
+                padding = strtol(src_operand, &end_str, 16);
+                gadget->padding += (int)padding;
+            }
         }
         else
         {
