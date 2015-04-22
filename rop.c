@@ -148,6 +148,10 @@ int rop_chain_execve(struct Node *root, struct Gadget *head, struct Arg *arg)
     rop_write_register_gadget(api, "edx", 0x080efff8);
     rop_chain_write_register_gadget(head, api);
 
+    rop_cmp_flag_gadget(head, api, "eax", "ecx");
+    rop_save_flag_gadget(head, api, 0x080effe0);
+    rop_delta_flag_gadget(head, api, 0x080effe0, 32, "edx");
+
     rop_zero_register_gadget(head, api, "eax");
     rop_add_register_gadget(head, api, "eax", 11);
     rop_interrupt_gadget(head, api);
@@ -173,6 +177,7 @@ void rop_build_api(struct Node *root, struct API **api, struct Arg *arg)
     (*api)->result_addREG = rop_build_add_register_gadget(root, &((*api)->addREG), arg);
     (*api)->result_cmpFLAG = rop_build_cmp_flag_gadget(root, &((*api)->cmpFLAG), arg);
     (*api)->result_saveFLAG = rop_build_save_flag_gadget(root, &((*api)->saveFLAG), arg);
+    (*api)->result_deltaFLAG = rop_build_delta_flag_gadget(root, &((*api)->deltaFLAG), arg, *api);
     (*api)->result_INT = rop_build_interrupt_gadget(root, &((*api)->INT), arg);
 }
 
@@ -187,6 +192,7 @@ void rop_end_api(struct API *api)
     rop_chain_list_free(api->addREG);
     rop_chain_list_free(api->cmpFLAG);
     rop_chain_list_free(api->saveFLAG);
+    rop_chain_list_free(api->deltaFLAG);
     rop_chain_list_free(api->INT);
 }
 
@@ -579,6 +585,83 @@ int rop_save_flag_gadget(struct Gadget *head, struct API *api, unsigned int dest
     return 0;
 }
 
+int rop_delta_flag_gadget(struct Gadget *head, struct API *api, unsigned int dest, int delta, char *flag)
+{
+    struct Gadget *temp;
+    struct Gadget *xor, *add, *pop;
+    struct Gadget *neg, *and, *mov;
+    char string_padding[20];
+    char string_neg[20];
+    int i;
+    sprintf(string_neg, "neg %s", flag);
+    temp = api->deltaFLAG->next;
+    while(temp)
+    {
+        if(strstr(temp->string, string_neg))
+        {
+            break;
+        }
+        temp = temp->next;
+    }
+    if(!temp)
+    {
+        printf("X: Can't find deltaFLAG gadget to do this operation.\n");
+        exit(-1);
+    }
+
+    neg = temp;
+    rop_chain_list_add(head, neg->address, neg->string, 1);
+    if(neg->padding > 0)
+    {
+        sprintf(string_padding, "padding*%d", neg->padding);
+        rop_chain_list_add(head, 0x41414141, string_padding, 1);
+    }
+
+    xor = neg->next;
+    rop_chain_list_add(head, xor->address, xor->string, 1);
+    if(xor->padding > 0)
+    {
+        sprintf(string_padding, "padding*%d", xor->padding);
+        rop_chain_list_add(head, 0x41414141, string_padding, 1);
+    }
+
+    add = xor->next;
+    for(i = 0; i < delta; i++)
+    {
+        rop_chain_list_add(head, add->address, add->string, 1);
+        if(add->padding > 0)
+        {
+            sprintf(string_padding, "padding*%d", add->padding);
+            rop_chain_list_add(head, 0x41414141, string_padding, 1);
+        }
+    }
+
+    and = add->next;
+    rop_chain_list_add(head, and->address, and->string, 1);
+    if(and->padding > 0)
+    {
+        sprintf(string_padding, "padding*%d", and->padding);
+        rop_chain_list_add(head, 0x41414141, string_padding, 1);
+    }
+
+    pop = and->next;
+    rop_chain_list_add(head, pop->address, pop->string, 1);
+    rop_chain_list_add(head, dest, "delta_dst", 1);
+    if(pop->padding > 0)
+    {
+        sprintf(string_padding, "padding*%d", pop->padding);
+        rop_chain_list_add(head, 0x41414141, string_padding, 1);
+    }
+
+    mov = pop->next;
+    rop_chain_list_add(head, mov->address, mov->string, 1);
+    if(mov->padding > 0)
+    {
+        sprintf(string_padding, "padding*%d", mov->padding);
+        rop_chain_list_add(head, 0x41414141, string_padding, 1);
+    }
+    return 0;
+}
 int rop_interrupt_gadget(struct Gadget *head, struct API *api)
 {
     if(api->result_INT == -1)
@@ -1425,10 +1508,226 @@ int rop_build_save_flag_gadget(struct Node *root, struct Gadget **saveFLAG, stru
                 continue;
             }
         }
-
         break;
     }
     return sub_value;
+}
+
+int rop_build_delta_flag_gadget(struct Node *root, struct Gadget **deltaFLAG, struct Arg *arg, struct API *api)
+{
+    int neg_valid, and_valid, mov_valid;
+    struct Node *neg_temp, *and_temp, *mov_temp;
+    struct Gadget *zeroREG, *addREG, *writeREG;
+    char neg_gadget_string[MaxGadgetLen] = "";
+    char and_gadget_string[MaxGadgetLen] = "";
+    char mov_gadget_string[MaxGadgetLen] = "";
+    char regexp_string[MaxRegExpLen] = "";
+    char *op[4] = {"eax", "ebx", "ecx", "edx"};
+    char mov_op[2][4];
+    int i, j, k, depth, restart;
+    printf("\n--- Build DeltaFLAG Gadgets ---\n");
+    *deltaFLAG = (struct Gadget *)malloc(sizeof(struct Gadget));
+    if(!*deltaFLAG)
+    {
+        fprintf(stderr ,"malloc failed.\n");
+        exit(-1);
+    }
+    rop_chain_list_init(*deltaFLAG);
+
+    for(i = 0; i < 4; i++)
+    {
+        /* Find neg gadget */
+        restart = 0;
+        strcpy(regexp_string, "^neg ___$");
+        strncpy(&regexp_string[5], op[i], 3);
+        for(depth = 1; depth < arg->depth; depth++)
+        {
+            memset(neg_gadget_string, 0, MaxGadgetLen);
+            neg_temp = tree_search(root, regexp_string, neg_gadget_string, depth, arg);
+            if(neg_temp)
+            {
+                printf(" O| 0x%08x -> Find NEG Gadget \"%s\"\n", neg_temp->address, neg_gadget_string);
+                break;
+            }
+            else if(depth == arg->depth-1)
+            {
+                if(arg->verbose)
+                {
+                    printf(" X| Can't find gadget \"neg %s\"\n", op[i]);
+                }
+                restart = 1;
+                break;
+            }
+        }
+        if(restart == 1)
+        {
+            continue;
+        }
+        neg_valid = rop_chain_list_add(0, neg_temp->address, neg_gadget_string, 1);
+        if(neg_valid == -1)
+        {
+            neg_temp->vaild = 0;
+            i--;
+            continue;
+        }
+        for(j = 0; j < 4; j++)
+        {
+            if(i == j)
+            {
+                continue;
+            }
+            zeroREG = api->zeroREG->next;
+            while(zeroREG)
+            {
+                if(!strcmp(zeroREG->target_write, op[j]))
+                {
+                    printf(" O| 0x%08x -> Find XOR Gadget \"%s\"\n", zeroREG->address, zeroREG->string);
+                    break;
+                }
+                zeroREG = zeroREG->next;
+            }
+            if(!zeroREG)
+            {
+                if(arg->verbose)
+                {
+                    printf(" X| Can't find gadget \"xor %s, %s\"\n", op[j], op[j]);
+                }
+                continue;
+            }
+            addREG = api->addREG->next;
+            while(addREG)
+            {
+                if(!strcmp(addREG->target_write, op[j]))
+                {
+                    printf(" O| 0x%08x -> Find INC Gadget \"%s\"\n", addREG->address, addREG->string);
+                    break;
+                }
+                addREG = addREG->next;
+            }
+            if(!addREG)
+            {
+                if(arg->verbose)
+                {
+                    printf(" X| Can't find gadget \"xor %s, %s\"\n", op[j], op[j]);
+                }
+                continue;
+            }
+            for(k = 0; k < 2; k++)
+            {
+                /* Find and gadget */
+                restart = 0;
+                if(k)
+                {
+                    sprintf(regexp_string, "and %s, %s", op[i], op[j]);
+                }
+                else
+                {
+                    sprintf(regexp_string, "and %s, %s", op[j], op[i]);
+                }
+                for(depth = 1; depth < arg->depth; depth++)
+                {
+                    memset(and_gadget_string, 0, MaxGadgetLen);
+                    and_temp = tree_search(root, regexp_string, and_gadget_string, depth, arg);
+                    if(and_temp)
+                    {
+                        printf(" O| 0x%08x -> Find AND Gadget \"%s\"\n", and_temp->address, and_gadget_string);
+                        break;
+                    }
+                    else if(depth == arg->depth-1)
+                    {
+                        if(arg->verbose)
+                        {
+                            printf(" X| Can't find gadget \"%s\"\n", regexp_string);
+                        }
+                        restart = 1;
+                        break;
+                    }
+                }
+                if(restart == 1 && k == 0)
+                {
+                    continue;
+                }
+                else if(restart == 1 && k == 1)
+                {
+                    break;
+                }
+                and_valid = rop_chain_list_add(0, and_temp->address, and_gadget_string, 1);
+                if(and_valid == -1)
+                {
+                    and_temp->vaild = 0;
+                    k--;
+                    continue;
+                }
+                /* Find mov gadget */
+                if(k)
+                {
+                    sprintf(regexp_string, "mov dword ptr .e[abcds][xip]], %s", op[i]);
+                }
+                else
+                {
+                    sprintf(regexp_string, "mov dword ptr .e[abcds][xip]], %s", op[j]);
+                }
+                for(depth = 1; depth < arg->depth; depth++)
+                {
+                    memset(mov_gadget_string, 0, MaxGadgetLen);
+                    mov_temp = tree_search(root, regexp_string, mov_gadget_string, depth, arg);
+                    if(mov_temp)
+                    {
+                        printf(" O| 0x%08x -> Find MOV Gadget \"%s\"\n", mov_temp->address, mov_gadget_string);
+                        break;
+                    }
+                    else if(depth == arg->depth-1)
+                    {
+                        if(arg->verbose)
+                        {
+                            printf(" X| Can't find MOV gadget.\n");
+                        }
+                        break;
+                    }
+                }
+                strncpy(mov_op[0], &mov_gadget_string[15], 3);
+                strncpy(mov_op[1], &mov_gadget_string[21], 3);
+                mov_op[0][3] = 0;
+                mov_op[1][3] = 0;
+                if(!strcmp(mov_op[0], "esp") || !strcmp(mov_op[1], "esp"))
+                {
+                    printf(" X| Can't use esp gadget. Try to find other mov gadget\n");
+                    mov_temp->vaild = 0;
+                    continue;
+                }
+                mov_valid = rop_chain_list_add(0, mov_temp->address, mov_gadget_string, 1);
+                if(mov_valid == -1)
+                {
+                    mov_temp->vaild = 0;
+                    k--;
+                    continue;
+                }
+                /* Find pop gadget */
+                writeREG = api->writeREG->next;
+                while(writeREG)
+                {
+                    if(!strcmp(writeREG->target_write, mov_op[0]))
+                    {
+                        printf(" O| 0x%08x -> Find POP Gadget \"%s\"\n", writeREG->address, writeREG->string);
+                        break;
+                    }
+                    writeREG = writeREG->next;
+                }
+                if(!writeREG)
+                {
+                    continue;
+                }
+                /* Success */
+                rop_chain_list_add(*deltaFLAG, neg_temp->address, neg_gadget_string, 1);
+                rop_chain_list_add(*deltaFLAG, zeroREG->address, zeroREG->string, 1);
+                rop_chain_list_add(*deltaFLAG, addREG->address, addREG->string, 1);
+                rop_chain_list_add(*deltaFLAG, and_temp->address, and_gadget_string, 1);
+                rop_chain_list_add(*deltaFLAG, writeREG->address, writeREG->string, 1);
+                rop_chain_list_add(*deltaFLAG, mov_temp->address, mov_gadget_string, 1);
+            }
+        }
+    }
+    return 0;
 }
 
 int rop_build_interrupt_gadget(struct Node *root, struct Gadget **INT, struct Arg *arg)
@@ -1632,6 +1931,12 @@ int rop_chain_list_add(struct Gadget *head, unsigned int address, char *string, 
     if(valid == -1)
     {
         return -1;
+    }
+    /* test_gadget_valid */
+    if(head == NULL)
+    {
+        free(gadget);
+        return 0;
     }
     if(head->next)
     {
