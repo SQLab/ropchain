@@ -143,6 +143,7 @@ int rop_chain_execve(struct Node *root, struct Gadget *head, struct Arg *arg)
     rop_write_memory_gadget(head, api, 0x080efff4, 0x68732f2f);
     rop_write_memory_gadget(head, api, 0x080efff8, 0);
 
+    rop_write_register_gadget(api, "eax", 0x080efff8);
     rop_write_register_gadget(api, "ebx", 0x080efff0);
     rop_write_register_gadget(api, "ecx", 0x080efff8);
     rop_write_register_gadget(api, "edx", 0x080efff8);
@@ -150,6 +151,8 @@ int rop_chain_execve(struct Node *root, struct Gadget *head, struct Arg *arg)
 
     rop_cmp_flag_gadget(head, api, "eax", "ecx");
     rop_save_flag_gadget(head, api, 0x080effe0);
+    rop_read_memory_gadget(head, api, "ecx", 0x080effe0);
+    rop_move_register_gadget(head, api, "edx", "ecx");
     rop_delta_flag_gadget(head, api, 0x080effe0, 32, "edx");
 
     rop_zero_register_gadget(head, api, "eax");
@@ -172,6 +175,7 @@ void rop_build_api(struct Node *root, struct API **api, struct Arg *arg)
     (*api)->result_readMEM = rop_build_read_memory_gadget(root, &((*api)->readMEM), arg);
     (*api)->result_writeREG = rop_build_write_register_gadget(root, &((*api)->writeREG), arg);
     (*api)->result_xchgREG = rop_build_xchg_register_gadget(root, &((*api)->xchgREG), arg);
+    (*api)->result_movREG = rop_build_move_register_gadget(root, &((*api)->movREG), arg);
     (*api)->result_zeroREG = rop_build_zero_register_gadget(root, &((*api)->zeroREG), arg);
     (*api)->result_shiftREG = rop_build_shift_register_gadget(root, &((*api)->shiftREG), arg);
     (*api)->result_addREG = rop_build_add_register_gadget(root, &((*api)->addREG), arg);
@@ -189,6 +193,7 @@ void rop_end_api(struct API *api)
     rop_chain_list_free(api->zeroREG);
     rop_chain_list_free(api->shiftREG);
     rop_chain_list_free(api->xchgREG);
+    rop_chain_list_free(api->movREG);
     rop_chain_list_free(api->addREG);
     rop_chain_list_free(api->cmpFLAG);
     rop_chain_list_free(api->saveFLAG);
@@ -386,6 +391,31 @@ int rop_xchg_register_gadget(struct Gadget *head, struct API *api, char *op1, ch
         temp = temp->next;
     }
     printf("X: Can't find xchgREG gadget to do this operation.\n");
+    exit(-1);
+}
+
+int rop_move_register_gadget(struct Gadget *head, struct API *api, char *dest, char *src)
+{
+    struct Gadget *temp;
+    char gadget_string[MaxGadgetLen] = "";
+    char string_padding[20];
+    temp = api->movREG->next;
+    sprintf(gadget_string, "mov %s, %s", dest, src);
+    while(temp)
+    {
+        if(strstr(temp->string ,gadget_string))
+        {
+            rop_chain_list_add(head, temp->address, temp->string, 1);
+            if(temp->padding > 0)
+            {
+                sprintf(string_padding, "padding*%d", temp->padding);
+                rop_chain_list_add(head, 0x41414141, string_padding, 1);
+            }
+            return 0;
+        }
+        temp = temp->next;
+    }
+    printf("X: Can't find movREG gadget to do this operation.\n");
     exit(-1);
 }
 
@@ -1153,6 +1183,66 @@ int rop_build_xchg_register_gadget(struct Node *root, struct Gadget **xchgREG, s
                 continue;
             }
             valid = rop_chain_list_add(*xchgREG, temp->address, gadget_string, 1);
+            if(valid == -1)
+            {
+                temp->vaild = 0;
+                j--;
+                continue;
+            }
+        }
+    }
+    return 0;
+}
+
+int rop_build_move_register_gadget(struct Node *root, struct Gadget **movREG, struct Arg *arg)
+{
+    int valid;
+    struct Node *temp;
+    char gadget_string[MaxGadgetLen] = "";
+    char regexp_string[MaxRegExpLen] = "";
+    char *op[4] = {"eax", "ebx", "ecx", "edx"};
+    int i, j, depth, restart;
+    printf("\n--- Build MoveREG Gadgets ---\n");
+    *movREG = (struct Gadget *)malloc(sizeof(struct Gadget));
+    if(!*movREG)
+    {
+        fprintf(stderr ,"malloc failed.\n");
+        exit(-1);
+    }
+    rop_chain_list_init(*movREG);
+
+    for(i = 0; i < 4; i++)
+    {
+        for(j = 0; j < 4; j++)
+        {
+            restart = 0;
+            strcpy(regexp_string, "mov ___, ___");
+            strncpy(&regexp_string[4], op[i], 3);
+            strncpy(&regexp_string[9], op[j], 3);
+            for(depth = 1; depth < arg->depth; depth++)
+            {
+                memset(gadget_string, 0, MaxGadgetLen);
+                temp = tree_search(root, regexp_string, gadget_string, depth, arg);
+                if(temp)
+                {
+                    printf(" O| 0x%08x -> Find XCHG Gadget \"%s\"\n", temp->address, gadget_string);
+                    break;
+                }
+                else if(depth == arg->depth-1)
+                {
+                    if(arg->verbose)
+                    {
+                        printf(" X| Can't find gadget \"%s\"\n", regexp_string);
+                    }
+                    restart = 1;
+                    break;
+                }
+            }
+            if(restart)
+            {
+                continue;
+            }
+            valid = rop_chain_list_add(*movREG, temp->address, gadget_string, 1);
             if(valid == -1)
             {
                 temp->vaild = 0;

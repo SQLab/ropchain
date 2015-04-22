@@ -35,6 +35,7 @@ struct API
     struct Gadget *xchgREG;
     struct Gadget *shiftREG;
     struct Gadget *addREG;
+    struct Gadget *movREG;
     struct Gadget *cmpFLAG;
     struct Gadget *saveFLAG;
     struct Gadget *deltaFLAG;
@@ -46,6 +47,7 @@ struct API
     int result_xchgREG;
     int result_shiftREG;
     int result_addREG;
+    int result_movREG;
     int result_cmpFLAG;
     int result_saveFLAG;
     int result_deltaFLAG;
@@ -73,6 +75,10 @@ int rop_zero_register_gadget(struct Gadget *head, struct API *api, char *dest);
 
 int rop_build_xchg_register_gadget(struct Node *root, struct Gadget **xchgREG, struct Arg *arg);
 int rop_xchg_register_gadget(struct Gadget *head, struct API *api, char *op1, char *op2);
+
+int rop_build_move_register_gadget(struct Node *root, struct Gadget **movREG, struct Arg *arg);
+int rop_move_register_gadget(struct Gadget *head, struct API *api, char *dest, char *src);
+
 int rop_build_add_register_gadget(struct Node *root, struct Gadget **addREG, struct Arg *arg);
 int rop_add_register_gadget(struct Gadget *head, struct API *api, char *dest, unsigned int value);
 
