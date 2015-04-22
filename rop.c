@@ -155,6 +155,8 @@ int rop_chain_execve(struct Node *root, struct Gadget *head, struct Arg *arg)
     rop_read_memory_gadget(head, api, "ecx", 0x080effe0);
     rop_move_register_gadget(head, api, "edx", "ecx");
     rop_delta_flag_gadget(head, api, 0x080effe0, 32, "edx");
+    rop_write_register_gadget(api, "eax", 0x080effe0);
+    rop_chain_write_register_gadget(head, api);
     rop_conditional_jump_gadget(head, api, "eax");
 
     rop_zero_register_gadget(head, api, "eax");
@@ -290,10 +292,14 @@ int rop_chain_write_register_gadget(struct Gadget *head, struct API *api)
                     sprintf(string_padding, "padding*%d", temp->padding);
                     rop_chain_list_add(head, 0x41414141, string_padding, 1);
                 }
+                /* Reset pop value */
+                temp->order = 0;
+                temp->next->address = 0;
             }
             temp = temp->next;
         }
     }
+    writeREG->total_target_write_no = 0;
     return 0;
 }
 
