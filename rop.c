@@ -208,7 +208,7 @@ void rop_end_api(struct API *api)
 
 int rop_chain_write_register_gadget(struct Gadget *head, struct API *api)
 {
-    int i, j, k;
+    int i, j, j_max, k;
     struct Gadget *writeREG = api->writeREG;
     struct Gadget *temp = writeREG;
     char part_target_write[20][10];
@@ -275,7 +275,8 @@ int rop_chain_write_register_gadget(struct Gadget *head, struct API *api)
     for(i = 0; i <= 20; i++)
     {
         temp = writeREG;
-        for(j = 0; j < writeREG->total_target_write_no; j++)
+        j_max = writeREG->total_target_write_no;
+        for(j = 0; j < j_max; j++)
         {
             temp = temp->next->next;
             while(temp->address == 0)
@@ -293,8 +294,9 @@ int rop_chain_write_register_gadget(struct Gadget *head, struct API *api)
                     rop_chain_list_add(head, 0x41414141, string_padding, 1);
                 }
                 /* Reset pop value */
-                temp->order = 0;
+                temp->order = -1;
                 temp->next->address = 0;
+                writeREG->total_target_write_no--;
             }
             temp = temp->next;
         }
