@@ -5,7 +5,7 @@ all: ropchain libropchain.so
 ropchain: main.c libropchain.so
 	${CC} $< -L. -Wl,-rpath . -lropchain -o $@
 
-libropchain.so: rop.c tree.c elf.c
+libropchain.so: rop.c tree.c elf.c spec.c
 	${CC} $^ -fPIC -shared -Wall -lcapstone -o $@
 
 clean:
