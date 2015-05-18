@@ -132,41 +132,6 @@ int rop_parse_gadgets(struct Node *root, unsigned char *binary, struct Segment *
     return 0;
 }
 
-int rop_chain_execve(struct Node *root, struct Gadget *head, struct Arg *arg)
-{
-    struct API *api;
-    rop_build_api(root, &api, arg);
-
-    printf("\n--- Start chain *execve(\"/bin/sh\")* gadgets ---\n\n");
-    rop_chain_list_init(head);
-
-    rop_write_memory_gadget(head, api, 0x080efff0, 0x6e69622f);
-    rop_write_memory_gadget(head, api, 0x080efff4, 0x68732f2f);
-    rop_write_memory_gadget(head, api, 0x080efff8, 0);
-
-    rop_write_register_gadget(api, "eax", 0x080efff8);
-    rop_write_register_gadget(api, "ebx", 0x080efff0);
-    rop_write_register_gadget(api, "ecx", 0x080efff8);
-    rop_write_register_gadget(api, "edx", 0x080efff8);
-    rop_chain_write_register_gadget(head, api);
-
-    rop_cmp_flag_gadget(head, api, "eax", "ecx");
-    rop_save_flag_gadget(head, api, 0x080effe0);
-    rop_read_memory_gadget(head, api, "ecx", 0x080effe0);
-    rop_move_register_gadget(head, api, "edx", "ecx");
-    rop_delta_flag_gadget(head, api, 0x080effe0, 32, "edx");
-    rop_write_register_gadget(api, "eax", 0x080effe0);
-    rop_chain_write_register_gadget(head, api);
-    rop_conditional_jump_gadget(head, api, "eax");
-
-    rop_zero_register_gadget(head, api, "eax");
-    rop_add_register_gadget(head, api, "eax", 11);
-    rop_interrupt_gadget(head, api);
-
-    rop_end_api(api);
-    return 0;
-}
-
 void rop_build_api(struct Node *root, struct API **api, struct Arg *arg)
 {
     *api = (struct API *)malloc(sizeof(struct API));
@@ -1263,7 +1228,7 @@ int rop_build_move_register_gadget(struct Node *root, struct Gadget **movREG, st
                 temp = tree_search(root, regexp_string, gadget_string, depth, arg);
                 if(temp)
                 {
-                    printf(" O| 0x%08x -> Find XCHG Gadget \"%s\"\n", temp->address, gadget_string);
+                    printf(" O| 0x%08x -> Find MOV Gadget \"%s\"\n", temp->address, gadget_string);
                     break;
                 }
                 else if(depth == arg->depth-1)
