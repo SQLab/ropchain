@@ -1228,7 +1228,7 @@ int rop_build_move_register_gadget(struct Node *root, struct Gadget **movREG, st
                 temp = tree_search(root, regexp_string, gadget_string, depth, arg);
                 if(temp)
                 {
-                    printf(" O| 0x%08x -> Find XCHG Gadget \"%s\"\n", temp->address, gadget_string);
+                    printf(" O| 0x%08x -> Find MOV Gadget \"%s\"\n", temp->address, gadget_string);
                     break;
                 }
                 else if(depth == arg->depth-1)
