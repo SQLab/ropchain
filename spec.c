@@ -1,6 +1,6 @@
 #include "spec.h"
 
-int rop_chain_execve(struct Node *root, struct Gadget *head, struct Arg *arg)
+int rop_chain_payload(struct Node *root, struct Gadget *head, struct Arg *arg)
 {
     struct API *api;
     unsigned int data = 0x080efff0;

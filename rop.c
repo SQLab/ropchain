@@ -31,7 +31,7 @@ int rop_chain(unsigned char **chain, unsigned char *binary, struct Arg *arg)
         return -1;
     }
     rop_parse_gadgets(root, binary, text, arg);
-    result = rop_chain_execve(root, head, arg);
+    result = rop_chain_payload(root, head, arg);
     if(!result)
     {
         result = rop_chain_list_traverse(head, chain);
