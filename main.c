@@ -85,7 +85,7 @@ int parse_arg(int argc, char** argv, struct Arg *arg)
     char *pch;
     arg->print = 1;
     arg->verbose = 0;
-    arg->depth = 2;
+    arg->depth = 10;
     arg->offset = 0;
     arg->badbyte_no = 0;
     //Parse command
